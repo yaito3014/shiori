@@ -1,0 +1,18 @@
+{
+  "name": "com.yaito3014.shiori",
+  "version": "0.1.0",
+  "displayName": "Shiori",
+  "description": "A Git client inside the Unity Editor, with a simple mode for non-programmers and a detailed mode for everyone else.",
+  "unity": "2022.3",
+  "license": "MIT",
+  "author": {
+    "name": "yaito3014",
+    "url": "https://github.com/yaito3014"
+  },
+  "keywords": [
+    "git",
+    "version control",
+    "editor"
+  ],
+  "samples": []
+}

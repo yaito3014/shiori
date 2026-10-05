@@ -1,0 +1,19 @@
+# Unity dev projects (DevProject~/<version>/)
+DevProject~/*/[Ll]ibrary/
+DevProject~/*/[Tt]emp/
+DevProject~/*/[Oo]bj/
+DevProject~/*/[Ll]ogs/
+DevProject~/*/[Uu]ser[Ss]ettings/
+DevProject~/*/[Bb]uild/
+DevProject~/*/Packages/packages-lock.json
+DevProject~/*/*.csproj
+DevProject~/*/*.sln
+DevProject~/*/.vs/
+DevProject~/*/.idea/
+DevProject~/*/TestResults*.xml
+
+# IDE / OS
+.vs/
+.idea/
+*.user
+.DS_Store
