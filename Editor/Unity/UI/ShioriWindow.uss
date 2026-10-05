@@ -1,0 +1,32 @@
+.shiori-root {
+    flex-grow: 1;
+}
+
+.shiori-lock-banner {
+    flex-direction: row;
+    align-items: center;
+    padding: 6px 10px;
+    margin: 6px;
+    border-radius: 4px;
+    background-color: rgba(255, 196, 0, 0.18);
+    border-width: 1px;
+    border-color: rgba(255, 196, 0, 0.6);
+}
+
+.shiori-lock-banner--hidden {
+    display: none;
+}
+
+.shiori-lock-message {
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+.shiori-content {
+    flex-grow: 1;
+    padding: 6px;
+}
+
+.shiori-content--locked {
+    opacity: 0.5;
+}

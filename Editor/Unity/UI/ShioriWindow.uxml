@@ -1,0 +1,8 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
+    <ui:VisualElement name="root" class="shiori-root">
+        <ui:VisualElement name="lock-banner" class="shiori-lock-banner">
+            <ui:Label name="lock-message" class="shiori-lock-message" />
+        </ui:VisualElement>
+        <ui:VisualElement name="content" class="shiori-content" />
+    </ui:VisualElement>
+</ui:UXML>
