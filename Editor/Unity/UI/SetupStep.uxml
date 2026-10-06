@@ -1,0 +1,15 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement class="shiori-step">
+        <ui:VisualElement class="shiori-step-header">
+            <ui:Label name="step-number" class="shiori-step-number" />
+            <ui:Label name="step-title" class="shiori-step-title" />
+            <ui:Label name="step-state" class="shiori-step-state" />
+        </ui:VisualElement>
+        <ui:VisualElement name="step-body" class="shiori-step-body">
+            <ui:Label name="step-message" class="shiori-step-message" />
+            <ui:Label name="step-detail" class="shiori-step-detail" />
+            <ui:VisualElement name="step-controls" class="shiori-step-controls" />
+            <ui:Label name="step-error" class="shiori-step-error" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

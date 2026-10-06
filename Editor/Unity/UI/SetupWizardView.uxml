@@ -1,0 +1,11 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:ScrollView class="shiori-wizard">
+        <ui:Label name="wizard-title" class="shiori-wizard-title" />
+        <ui:Label name="wizard-intro" class="shiori-wizard-intro" />
+        <ui:VisualElement name="steps" class="shiori-wizard-steps" />
+        <ui:VisualElement name="finish-row" class="shiori-wizard-finish">
+            <ui:Label name="finish-message" class="shiori-wizard-finish-message" />
+            <ui:Button name="finish-button" class="shiori-primary-button" />
+        </ui:VisualElement>
+    </ui:ScrollView>
+</ui:UXML>
