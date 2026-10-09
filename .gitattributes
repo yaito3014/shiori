@@ -18,8 +18,8 @@
 *.jpg binary
 *.dll binary
 
-# Not part of the distributed package: the VPM zip (git archive) and the .unitypackage
-# (Tools~/Export-UnityPackage.ps1 asks git check-attr) both honour these. Users get Editor/,
+# Not part of the distributed package: the VPM zip (git archive) and the signed .tgz
+# (Tools~/Sign-Package.ps1 signs a git archive) both honour these. Users get Editor/,
 # package.json and LICENSE; docs live on GitHub (documentationUrl / changelogUrl).
 Tools~ export-ignore
 .github export-ignore

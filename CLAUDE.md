@@ -48,8 +48,7 @@ shiori-unity/
   Tools~/                   # 開発用スクリプト（配布対象外）
     New-DevProject.ps1      # 検証用 Unity プロジェクトをリポジトリの外に生成する
     Test-DevProject.ps1     # 検証用プロジェクトで EditMode テストを回し、結果を要約する
-    Export-UnityPackage.ps1 # 追跡ファイルから ../dist/<name>-<version>.unitypackage を作る（Unity 不要）
-    Install-Hooks.ps1       # 上を post-commit フックとして入れる（shiori-vrchat にも使う）
+    Sign-Package.ps1        # Unity 6 で署名した ../dist/<name>-<version>.tgz を作る（パスワードが要るので手元で実行）
   docs~/
     adr/                    # 設計判断の記録（後述）。末尾 ~ なので Unity からも配布物からも外れる
   .github/workflows/
@@ -102,11 +101,13 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
   `git archive` の zip（`Tools~` / `.github` / dotfiles は `.gitattributes` の `export-ignore` で除外）と
   `package.json`、SHA-256 を GitHub Release に添付し、変数 `VPM_LISTING_REPO` と秘密 `VPM_LISTING_TOKEN` が
   あれば `../vpm-listing` に `repository_dispatch` を送る。VCC / ALCOM にはそのリスティングから届く。
-- コミットごとに `.unitypackage` をワークスペース直下の `dist/` に出す。`git` の post-commit フックが
-  `Tools~/Export-UnityPackage.ps1` を呼ぶ（`.git/hooks` は追跡されないので、クローン直後は
-  `pwsh Tools~/Install-Hooks.ps1` で入れる）。中身は `git ls-files` の `.meta` 付きファイルのうち
-  `.gitattributes` で `export-ignore` になっていないもの（= VPM zip と同じ: `Editor/`、`package.json`、`LICENSE`）で、
-  pathname は `Packages/<name>/...`。Unity を起動しないので数秒で終わる。
+- `.unitypackage` では配布しない。Unity 6 は取り込み時に「署名されていない」と出し、
+  `-upmPack` で署名できるのは `.tgz` だけなので。VCC 以外の利用者には署名済み `.tgz` を渡す。
+- 署名: `pwsh Tools~/Sign-Package.ps1 -Username <email> -Organization 15668133757639`（コアは既定、
+  拡張は `-PackageRoot ..\shiori-vrchat`）。`git archive HEAD` と同じ中身を Unity 6000.6 の `-upmPack` で署名し、
+  `../dist/<name>-<version>.tgz` に置く。Unity アカウントのパスワードが要る（Hub のログインでは足りない）。
+  確認済み: Unity 6 は tarball として入れると Valid、`Packages/` に展開した埋め込みパッケージ（VCC の入れ方）は
+  Unchecked で署名を見ない。2022.3 は tarball を問題なく入れられる（Unsigned 扱い）。
 - 配布物に入れないもの（`Tests/`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`docs~/`、`Tools~/`、`.github/`）は
   `.gitattributes` の `export-ignore` が唯一の定義。ファイルを足すときは `.meta` も一緒に書く。
   VCC は `Packages/<id>/` に展開する（= 埋め込みパッケージ）ので、`Tests/` を入れると利用者のプロジェクトで
