@@ -107,6 +107,45 @@ namespace Shiori.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator SimpleModeView_ListsSetAsideChanges()
+        {
+            yield return PrepareRepository();
+            var head = _session.Repository.GetHeadAsync(CancellationToken.None);
+            yield return Await(head);
+            // 「保存せずに戻す」 to the current snapshot: the unsaved edits are set aside.
+            var restore = RestoreRunner.RunAsync(_session.Repository, head.Result, "最初", RestoreMode.StashFirst, null, CancellationToken.None);
+            yield return Await(restore);
+            Assume.That(restore.Result.StashHash, Is.Not.Null);
+
+            var view = new SimpleModeView(_session);
+            var panel = view.Q<Foldout>("aside-panel");
+            Assert.That(panel.ClassListContains("shiori-hidden"), Is.True, "hidden until loaded");
+            view.RefreshAll();
+            var started = System.DateTime.UtcNow;
+            while (panel.ClassListContains("shiori-hidden"))
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the set-aside changes were not listed");
+                yield return null;
+            }
+
+            Assert.That(panel.text, Is.EqualTo(L10n.Tr("aside.title", 1)));
+            var rows = view.Q<VisualElement>("aside-list");
+            Assert.That(rows.childCount, Is.EqualTo(1));
+            Assert.That(rows[0].Q<Label>().text, Is.EqualTo(L10n.Tr("aside.item", "最初")));
+            Assert.That(rows[0].Q<Button>().text, Is.EqualTo(L10n.Tr("aside.button")));
+        }
+
+        [Test]
+        public void TakeOutMessages_ExplainEachOutcome()
+        {
+            var paths = new[] { "a", "b", "c", "d", "e", "f", "g" };
+            Assert.That(SimpleModeView.DescribeTakeOut(new SetAsidePlan(SetAsideBlock.None, paths, null)), Is.EqualTo(L10n.Tr("aside.done", 7)));
+            Assert.That(SimpleModeView.DescribeTakeOut(new SetAsidePlan(SetAsideBlock.WorkingTreeHasChanges, paths, null)), Is.EqualTo(L10n.Tr("aside.dirty")));
+            Assert.That(SimpleModeView.ListPaths(paths, 5), Is.EqualTo("a\nb\nc\nd\ne\n" + L10n.Tr("aside.more", 2)));
+            Assert.That(SimpleModeView.DescribeTakeOut(new SetAsidePlan(SetAsideBlock.Overlap, paths, new[] { "x" })), Is.EqualTo(L10n.Tr("aside.overlap", "x")));
+        }
+
+        [UnityTest]
         public IEnumerator SetupWizardView_Builds()
         {
             var session = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());

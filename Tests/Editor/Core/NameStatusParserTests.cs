@@ -45,14 +45,16 @@ namespace Shiori.Tests
         }
 
         [Test]
-        public void StashList_ParsesTriples()
+        public void StashList_ParsesSelectorHashSubjectAndTime()
         {
-            var entries = StashListParser.Parse("stash@{0}\0f87d2e70e7484dac858f587b1aacdbff547f667c\0On main: shiori:auto-before-restore\0stash@{1}\0abc\0WIP on main: x\0");
+            var entries = StashListParser.Parse("stash@{0}\0f87d2e70e7484dac858f587b1aacdbff547f667c\0On main: shiori:auto-before-restore: first\01791554195\0stash@{1}\0abc\0WIP on main: x\0garbage\0");
             Assert.That(entries.Count, Is.EqualTo(2));
             Assert.That(entries[0].Selector, Is.EqualTo("stash@{0}"));
             Assert.That(entries[0].Hash, Is.EqualTo("f87d2e70e7484dac858f587b1aacdbff547f667c"));
-            Assert.That(entries[0].Message, Is.EqualTo("On main: shiori:auto-before-restore"));
+            Assert.That(entries[0].Message, Is.EqualTo("On main: shiori:auto-before-restore: first"));
+            Assert.That(entries[0].Time, Is.EqualTo(System.DateTimeOffset.FromUnixTimeSeconds(1791554195)));
             Assert.That(entries[1].Selector, Is.EqualTo("stash@{1}"));
+            Assert.That(entries[1].Time, Is.EqualTo(System.DateTimeOffset.MinValue), "an unreadable time is unknown, not an error");
         }
     }
 }
