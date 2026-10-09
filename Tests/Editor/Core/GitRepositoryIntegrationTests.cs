@@ -49,6 +49,23 @@ namespace Shiori.Tests
         }
 
         [Test]
+        public void ReadFileAt_ReturnsTheTextOfThatSnapshot_OrNullWhenAbsent()
+        {
+            InitWithIdentity();
+            _dir.WriteText("Packages/vpm-manifest.json", "{ \"locked\": { \"com.vrchat.base\": {} } }");
+            _dir.WriteText("Assets/日本語 ファイル.txt", "こんにちは");
+            var first = Save("first");
+            _dir.WriteText("Packages/vpm-manifest.json", "{ \"locked\": {} }");
+            Save("second");
+
+            Assert.That(_repo.ReadFileAtAsync(first, "Packages/vpm-manifest.json", None).GetAwaiter().GetResult(), Is.EqualTo("{ \"locked\": { \"com.vrchat.base\": {} } }"));
+            Assert.That(_repo.ReadFileAtAsync("HEAD", "Packages/vpm-manifest.json", None).GetAwaiter().GetResult(), Is.EqualTo("{ \"locked\": {} }"));
+            Assert.That(_repo.ReadFileAtAsync(first, "Assets\\日本語 ファイル.txt", None).GetAwaiter().GetResult(), Is.EqualTo("こんにちは"));
+            Assert.That(_repo.ReadFileAtAsync(first, "Packages/missing.json", None).GetAwaiter().GetResult(), Is.Null);
+            Assert.That(_repo.ReadFileAtAsync(first, "Packages", None).GetAwaiter().GetResult(), Is.Null, "a folder is not a file");
+        }
+
+        [Test]
         public void Probe_BeforeAndAfterInit()
         {
             Assert.That(_repo.ProbeAsync(None).GetAwaiter().GetResult().State, Is.EqualTo(RepositoryState.NotARepository));

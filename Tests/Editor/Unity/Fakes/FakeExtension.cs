@@ -39,6 +39,26 @@ namespace Shiori.Editor.Tests
 
         public override string GetRestoreWarning(IExtensionContext context, Snapshot target) => RestoreWarning;
 
+        public const string NoticeFile = "Assets/notice.txt";
+        public const string NoticeId = "fake.notice";
+        public const string NoticeTitle = "Fake notice";
+
+        /// <summary>The async warning names how many paths the 戻す changes, to prove the preview arrives.</summary>
+        public override Task<string> GetRestoreWarningAsync(IExtensionContext context, RestorePreview preview, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(RestoreWarning + " (" + preview.ChangedPaths.Count + ")");
+        }
+
+        /// <summary>A notice derived from state: shown while <see cref="NoticeFile"/> exists.</summary>
+        public override Task<IReadOnlyList<ExtensionNotice>> GetNoticesAsync(IExtensionContext context, CancellationToken cancellationToken)
+        {
+            var path = System.IO.Path.Combine(context.ProjectRoot, NoticeFile);
+            IReadOnlyList<ExtensionNotice> notices = System.IO.File.Exists(path)
+                ? new[] { new ExtensionNotice(NoticeId, NoticeTitle, "notice message", "notice detail", new[] { new SetupStepAction("Fix", () => System.IO.File.Delete(path)) }) }
+                : System.Array.Empty<ExtensionNotice>();
+            return Task.FromResult(notices);
+        }
+
         public override Task BeforeSaveAsync(IExtensionContext context, CancellationToken cancellationToken)
         {
             BeforeSaveCalls++;

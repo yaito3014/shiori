@@ -214,6 +214,18 @@ namespace Shiori.Editor.Tests
             Assert.That(notices[0].Q<Label>().text, Is.EqualTo(FakeExtension.StepTitle));
             Assert.That(notices[0].Q<Button>().text, Is.EqualTo("Write"));
 
+            // An extension notice joins the pending step once its cause exists.
+            File.WriteAllText(Path.Combine(_root, FakeExtension.NoticeFile), "x");
+            view.RefreshStatus();
+            started = System.DateTime.UtcNow;
+            while (notices.childCount < 2)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the extension notice was not shown");
+                yield return null;
+            }
+            Assert.That(notices[1].Q<Label>().text, Is.EqualTo(FakeExtension.NoticeTitle));
+            Assert.That(notices[1].Q<Button>().text, Is.EqualTo("Fix"));
+
             var noExtensions = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());
             yield return Await(noExtensions.LocateGitAsync(CancellationToken.None));
             var plain = new SimpleModeView(noExtensions);
