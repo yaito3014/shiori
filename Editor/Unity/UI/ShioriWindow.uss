@@ -481,13 +481,44 @@
     margin-bottom: 4px;
 }
 
-/* ---- extension text (status line, save hint, settings panels) ---- */
+/* ---- extensions: header chip, memo placeholder, pending-step notices ---- */
 
-.shiori-status-line {
-    margin: 0 0 4px 0;
+.shiori-mode-toggle {
+    flex-direction: row;
+    align-items: center;
 }
 
-.shiori-save-hint {
+.shiori-mode-spacer {
+    flex-grow: 1;
+}
+
+.shiori-status-chip {
+    padding: 1px 8px;
+    border-radius: 9px;
+    background-color: rgba(128, 128, 128, 0.25);
+    opacity: 0.9;
+}
+
+.shiori-placeholder {
+    position: absolute;
+    left: 3px;
+    top: 1px;
+    opacity: 0.45;
+}
+
+.shiori-ext-notices {
+    flex-direction: column;
+}
+
+.shiori-ext-notice {
+    flex-direction: column;
+}
+
+.shiori-ext-notice > .shiori-settings-section {
+    margin: 0 0 2px 0;
+}
+
+.shiori-ext-notice > .shiori-step-controls-row {
     margin-top: 4px;
 }
 

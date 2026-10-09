@@ -54,7 +54,7 @@ namespace Shiori.Editor.Tests
             var session = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());
             Assert.That(session.Extensions, Is.Empty);
             Assert.That(session.GetStatusLine(), Is.Null);
-            Assert.That(session.GetSaveHint(), Is.Null);
+            Assert.That(session.GetMemoPlaceholder(), Is.Null);
             Assert.That(session.GetRestoreWarning(null), Is.Null);
         }
 
@@ -100,7 +100,7 @@ namespace Shiori.Editor.Tests
             Assert.That(extension.AfterRestoreCalls, Is.EqualTo(1));
 
             Assert.That(session.GetStatusLine(), Is.EqualTo(FakeExtension.StatusLine));
-            Assert.That(session.GetSaveHint(), Is.EqualTo(FakeExtension.SaveHint));
+            Assert.That(session.GetMemoPlaceholder(), Is.EqualTo(FakeExtension.MemoPlaceholder));
             Assert.That(session.GetRestoreWarning(null), Is.EqualTo(FakeExtension.RestoreWarning));
             Assert.That(SimpleModeView.WithWarning("body", FakeExtension.RestoreWarning), Is.EqualTo("body\n\n" + FakeExtension.RestoreWarning));
             Assert.That(SimpleModeView.WithWarning("body", null), Is.EqualTo("body"));

@@ -257,16 +257,19 @@ namespace Shiori.Editor
             foreach (var extension in Extensions) await extension.AfterRestoreAsync(ContextFor(extension), result, cancellationToken);
         }
 
-        /// <summary>All non-empty save hints, one per line, or null.</summary>
-        public string GetSaveHint()
+        /// <summary>The first non-empty memo placeholder, or null. Placeholders do not stack: one line fits the field.</summary>
+        public string GetMemoPlaceholder()
         {
-            return Collect(extension => extension.GetSaveHint(ContextFor(extension)));
+            var all = Collect(extension => extension.GetMemoPlaceholder(ContextFor(extension)));
+            if (all == null) return null;
+            var newline = all.IndexOf('\n');
+            return newline < 0 ? all : all.Substring(0, newline);
         }
 
-        /// <summary>All non-empty status lines, one per line, or null.</summary>
+        /// <summary>All non-empty status chips joined with " / ", or null.</summary>
         public string GetStatusLine()
         {
-            return Collect(extension => extension.GetStatusLine(ContextFor(extension)));
+            return Collect(extension => extension.GetStatusLine(ContextFor(extension)))?.Replace("\n", " / ");
         }
 
         /// <summary>All non-empty restore warnings for <paramref name="target"/>, one per line, or null.</summary>

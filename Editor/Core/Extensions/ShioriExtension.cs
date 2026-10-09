@@ -27,13 +27,16 @@ namespace Shiori
             return Array.Empty<SetupStep>();
         }
 
-        /// <summary>A short, localized hint shown under the 保存 button, or null for none.</summary>
-        public virtual string GetSaveHint(IExtensionContext context)
+        /// <summary>
+        /// Localized placeholder shown inside the empty メモ field (for example memo examples for
+        /// the kind of project the extension targets), or null for the core's default (none).
+        /// </summary>
+        public virtual string GetMemoPlaceholder(IExtensionContext context)
         {
             return null;
         }
 
-        /// <summary>One localized line of project status shown at the top of simple mode (for example the build target), or null.</summary>
+        /// <summary>A short localized chip shown in the window header (for example the build target), or null.</summary>
         public virtual string GetStatusLine(IExtensionContext context)
         {
             return null;

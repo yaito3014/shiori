@@ -16,7 +16,7 @@ namespace Shiori.Editor.Tests
         public const string TodoMessage = "fake block missing";
         public const string DoneMessage = "fake block present";
         public const string StatusLine = "fake status";
-        public const string SaveHint = "fake hint";
+        public const string MemoPlaceholder = "fake placeholder";
         public const string RestoreWarning = "fake warning";
 
         public static readonly string[] Lines = { "FakeFolder/", "*.fake" };
@@ -33,7 +33,7 @@ namespace Shiori.Editor.Tests
             return new SetupStep[] { new BlockStep(context) };
         }
 
-        public override string GetSaveHint(IExtensionContext context) => SaveHint;
+        public override string GetMemoPlaceholder(IExtensionContext context) => MemoPlaceholder;
 
         public override string GetStatusLine(IExtensionContext context) => StatusLine;
 

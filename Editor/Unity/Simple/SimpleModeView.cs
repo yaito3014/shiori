@@ -19,11 +19,11 @@ namespace Shiori.Editor
 
         private readonly Label _error;
         private readonly Label _notice;
-        private readonly Label _statusLine;
+        private readonly VisualElement _extensionNotices;
         private readonly TextField _message;
+        private readonly Label _placeholder;
         private readonly Button _saveButton;
         private readonly Label _saveStatus;
-        private readonly Label _saveHint;
         private readonly ListView _saveChanges;
         private readonly Foldout _metaWarnings;
         private readonly ScrollView _metaList;
@@ -54,7 +54,11 @@ namespace Shiori.Editor
         public string DraftMessage
         {
             get => _message.value;
-            set => _message.SetValueWithoutNotify(value ?? string.Empty);
+            set
+            {
+                _message.SetValueWithoutNotify(value ?? string.Empty);
+                UpdatePlaceholder();
+            }
         }
 
         public SimpleModeView(ShioriSession session)
@@ -67,12 +71,23 @@ namespace Shiori.Editor
 
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
+            _extensionNotices = this.Q<VisualElement>("ext-notices");
             this.Q<Label>("save-title").text = L10n.Tr("simple.save.title");
-            _statusLine = this.Q<Label>("status-line");
-            _saveHint = this.Q<Label>("save-hint");
             _message = this.Q<TextField>("save-message");
             _message.label = L10n.Tr("simple.save.message.label");
-            _message.RegisterValueChangedCallback(e => DraftChanged?.Invoke(e.newValue));
+            _message.RegisterValueChangedCallback(e =>
+            {
+                DraftChanged?.Invoke(e.newValue);
+                UpdatePlaceholder();
+            });
+            // UI Toolkit in 2022.3 has no placeholder; a label laid over the empty input does the job.
+            _placeholder = new Label { name = "save-placeholder", pickingMode = PickingMode.Ignore };
+            _placeholder.AddToClassList("shiori-placeholder");
+            _placeholder.text = _session.GetMemoPlaceholder() ?? string.Empty;
+            (_message.Q(TextField.textInputUssName) ?? (VisualElement)_message).Add(_placeholder);
+            _message.RegisterCallback<FocusInEvent>(_ => UpdatePlaceholder(focused: true));
+            _message.RegisterCallback<FocusOutEvent>(_ => UpdatePlaceholder(focused: false));
+            UpdatePlaceholder();
             _saveButton = this.Q<Button>("save-button");
             _saveButton.text = L10n.Tr("simple.save.button");
             _saveButton.clicked += Save;
@@ -120,7 +135,6 @@ namespace Shiori.Editor
 
             SetError(null);
             SetNotice(null);
-            RenderExtensionText();
             RenderSaveStatus();
             ShowDetail(null);
 
@@ -153,13 +167,13 @@ namespace Shiori.Editor
                 _historyExhausted = log.Count < PageSize;
 
                 SetError(null);
-                RenderExtensionText();
                 RenderSaveStatus();
                 RenderHistory();
 
                 // The meta walk can take a while on big projects; show everything else first.
                 var meta = await CheckMetaAsync();
                 RenderMeta(meta);
+                await RenderExtensionNoticesAsync();
             }
             catch (Exception ex)
             {
@@ -180,10 +194,10 @@ namespace Shiori.Editor
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
                 SetError(null);
-                RenderExtensionText();
                 RenderSaveStatus();
                 var meta = await CheckMetaAsync();
                 RenderMeta(meta);
+                await RenderExtensionNoticesAsync();
             }
             catch (Exception ex)
             {
@@ -269,16 +283,41 @@ namespace Shiori.Editor
         private const int PendingRowHeight = 20;
         private const int PendingRowsVisible = 7;
 
-        /// <summary>Text contributed by extensions: a status line at the top and a hint under 保存. Hidden when there is none.</summary>
-        private void RenderExtensionText()
-        {
-            var statusLine = _session.GetStatusLine();
-            _statusLine.text = statusLine ?? string.Empty;
-            _statusLine.EnableInClassList(HiddenClass, string.IsNullOrEmpty(statusLine));
+        private bool _messageFocused;
 
-            var hint = _session.GetSaveHint();
-            _saveHint.text = hint ?? string.Empty;
-            _saveHint.EnableInClassList(HiddenClass, string.IsNullOrEmpty(hint));
+        /// <summary>The placeholder shows only while the memo is empty and not being edited.</summary>
+        private void UpdatePlaceholder(bool? focused = null)
+        {
+            if (focused.HasValue) _messageFocused = focused.Value;
+            var show = !_messageFocused && string.IsNullOrEmpty(_message.value) && !string.IsNullOrEmpty(_placeholder.text);
+            _placeholder.EnableInClassList(HiddenClass, !show);
+        }
+
+        /// <summary>
+        /// An extension step that is pending after setup (say, VCC added a package) is shown here as a
+        /// notice with the step's own button, so the user does not have to find it under Project Settings.
+        /// </summary>
+        private async Task RenderExtensionNoticesAsync()
+        {
+            if (_session.Extensions.Count == 0) return;
+            var steps = await _session.EvaluateExtensionStepsAsync(CancellationToken.None);
+            _extensionNotices.Clear();
+            foreach (var step in steps)
+            {
+                if (step.Done) continue;
+                var notice = new ExtensionStepPanel(step);
+                notice.AddToClassList("shiori-notice");
+                notice.AddToClassList("shiori-ext-notice");
+                notice.Changed += OnExtensionNoticeChanged;
+                _extensionNotices.Add(notice);
+            }
+            _extensionNotices.EnableInClassList(HiddenClass, _extensionNotices.childCount == 0);
+        }
+
+        /// <summary>After a notice's button ran, re-evaluate: a fixed step disappears, and the working tree may have changed.</summary>
+        private void OnExtensionNoticeChanged()
+        {
+            RefreshStatus();
         }
 
         private void RenderSaveStatus()

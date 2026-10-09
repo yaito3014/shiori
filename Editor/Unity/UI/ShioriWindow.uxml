@@ -1,9 +1,13 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements">
     <ui:VisualElement name="root" class="shiori-root">
         <ui:VisualElement name="mode-bar" class="shiori-mode-bar shiori-hidden">
-            <ui:Label name="mode-label" class="shiori-mode-label" />
-            <ui:Button name="mode-simple" class="shiori-mode-button" />
-            <ui:Button name="mode-detail" class="shiori-mode-button" />
+            <ui:VisualElement name="mode-toggle" class="shiori-mode-toggle">
+                <ui:Label name="mode-label" class="shiori-mode-label" />
+                <ui:Button name="mode-simple" class="shiori-mode-button" />
+                <ui:Button name="mode-detail" class="shiori-mode-button" />
+            </ui:VisualElement>
+            <ui:VisualElement class="shiori-mode-spacer" />
+            <ui:Label name="status-chip" class="shiori-status-chip shiori-hidden" />
         </ui:VisualElement>
         <ui:VisualElement name="lock-banner" class="shiori-lock-banner">
             <ui:Label name="lock-message" class="shiori-lock-message" />

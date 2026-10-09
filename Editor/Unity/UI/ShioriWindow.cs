@@ -21,8 +21,10 @@ namespace Shiori.Editor
         private ShioriSession _session;
         private IShioriView _mainView;
         private VisualElement _modeBar;
+        private VisualElement _modeToggle;
         private Button _modeSimple;
         private Button _modeDetail;
+        private Label _statusChip;
         private VisualElement _lockBanner;
         private Label _lockMessage;
         private VisualElement _content;
@@ -83,6 +85,8 @@ namespace Shiori.Editor
             }
 
             _modeBar = rootVisualElement.Q<VisualElement>("mode-bar");
+            _modeToggle = rootVisualElement.Q<VisualElement>("mode-toggle");
+            _statusChip = rootVisualElement.Q<Label>("status-chip");
             rootVisualElement.Q<Label>("mode-label").text = L10n.Tr("mode.label");
             _modeSimple = rootVisualElement.Q<Button>("mode-simple");
             _modeSimple.text = L10n.Tr("mode.simple");
@@ -100,7 +104,24 @@ namespace Shiori.Editor
 
         private void OnFocus()
         {
-            _mainView?.RefreshAll();
+            if (_mainView == null) return;
+            RenderHeader();
+            _mainView.RefreshAll();
+        }
+
+        /// <summary>
+        /// The header shows the mode toggle (when both modes are available) and the extensions' status
+        /// chip (for example the build target). It is hidden when neither has anything to show.
+        /// </summary>
+        private void RenderHeader()
+        {
+            if (_session == null || _modeBar == null) return;
+            var canSwitch = _session.User.CanSwitchMode;
+            var status = _session.GetStatusLine();
+            _modeToggle.EnableInClassList(HiddenClass, !canSwitch);
+            _statusChip.text = status ?? string.Empty;
+            _statusChip.EnableInClassList(HiddenClass, string.IsNullOrEmpty(status));
+            _modeBar.EnableInClassList(HiddenClass, !canSwitch && string.IsNullOrEmpty(status));
         }
 
         /// <summary>A settings page changed the git path, the mode or the setup flag: start over.</summary>
@@ -116,7 +137,9 @@ namespace Shiori.Editor
             _scheduledStatusRefresh = rootVisualElement.schedule.Execute(() =>
             {
                 _scheduledStatusRefresh = null;
-                _mainView?.RefreshStatus();
+                if (_mainView == null) return;
+                RenderHeader();
+                _mainView.RefreshStatus();
             }).StartingIn(500);
         }
 
@@ -201,7 +224,7 @@ namespace Shiori.Editor
         private void ShowMain()
         {
             var mode = _session.User.EffectiveMode;
-            _modeBar.EnableInClassList(HiddenClass, !_session.User.CanSwitchMode);
+            RenderHeader();
             _modeSimple.EnableInClassList(ModeActiveClass, mode == UiMode.Simple);
             _modeDetail.EnableInClassList(ModeActiveClass, mode == UiMode.Detail);
 

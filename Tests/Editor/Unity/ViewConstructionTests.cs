@@ -135,22 +135,38 @@ namespace Shiori.Editor.Tests
         }
 
         [UnityTest]
-        public IEnumerator SimpleModeView_ShowsExtensionStatusLineAndHint()
+        public IEnumerator SimpleModeView_ShowsMemoPlaceholderAndPendingExtensionStepAsNotice()
         {
             yield return PrepareRepository();
             var session = new ShioriSession(_root, new ProcessGitRunner(), new ShioriExtension[] { new FakeExtension() });
             yield return Await(session.LocateGitAsync(CancellationToken.None));
 
             var view = new SimpleModeView(session);
-            Assert.That(view.Q<Label>("status-line").text, Is.EqualTo(FakeExtension.StatusLine));
-            Assert.That(view.Q<Label>("status-line").ClassListContains("shiori-hidden"), Is.False);
-            Assert.That(view.Q<Label>("save-hint").text, Is.EqualTo(FakeExtension.SaveHint));
+            var placeholder = view.Q<Label>("save-placeholder");
+            Assert.That(placeholder.text, Is.EqualTo(FakeExtension.MemoPlaceholder));
+            Assert.That(placeholder.ClassListContains("shiori-hidden"), Is.False, "empty memo shows the placeholder");
+            view.DraftMessage = "typed";
+            Assert.That(placeholder.ClassListContains("shiori-hidden"), Is.True, "a memo hides the placeholder");
+            view.DraftMessage = string.Empty;
+
+            // The fake step is pending (its block is not in .gitignore), so it shows up as a notice with its button.
+            view.RefreshAll();
+            var notices = view.Q<VisualElement>("ext-notices");
+            var started = System.DateTime.UtcNow;
+            while (notices.childCount == 0)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the pending extension step was not shown");
+                yield return null;
+            }
+            Assert.That(notices.ClassListContains("shiori-hidden"), Is.False);
+            Assert.That(notices[0].Q<Label>().text, Is.EqualTo(FakeExtension.StepTitle));
+            Assert.That(notices[0].Q<Button>().text, Is.EqualTo("Write"));
 
             var noExtensions = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());
             yield return Await(noExtensions.LocateGitAsync(CancellationToken.None));
             var plain = new SimpleModeView(noExtensions);
-            Assert.That(plain.Q<Label>("status-line").ClassListContains("shiori-hidden"), Is.True);
-            Assert.That(plain.Q<Label>("save-hint").ClassListContains("shiori-hidden"), Is.True);
+            Assert.That(plain.Q<Label>("save-placeholder").ClassListContains("shiori-hidden"), Is.True, "no extension, no placeholder");
+            Assert.That(plain.Q<VisualElement>("ext-notices").ClassListContains("shiori-hidden"), Is.True);
         }
     }
 }
