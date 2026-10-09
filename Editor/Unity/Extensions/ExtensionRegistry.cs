@@ -37,7 +37,8 @@ namespace Shiori.Editor
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogException(new InvalidOperationException("Shiori extension could not be loaded: " + type.FullName, ex));
+                    // LogException would print only the inner exception, hiding which extension failed.
+                    Debug.LogError("Shiori: extension " + type.FullName + " could not be loaded.\n" + ex);
                 }
             }
             result.Sort((a, b) => string.CompareOrdinal(a.PackageId, b.PackageId));

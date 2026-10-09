@@ -278,6 +278,72 @@ namespace Shiori.Editor
             return Collect(extension => extension.GetRestoreWarning(ContextFor(extension), target));
         }
 
+        /// <summary>
+        /// What the 戻す to <paramref name="target"/> will change: the paths that differ between HEAD and the target.
+        /// Requires a repository with at least one commit.
+        /// </summary>
+        public async Task<RestorePreview> PreviewRestoreAsync(Snapshot target, CancellationToken cancellationToken)
+        {
+            var repository = Repository ?? throw new InvalidOperationException("git is not available");
+            var paths = await repository.GetChangedPathsAsync("HEAD", target.Hash, cancellationToken);
+            return new RestorePreview(target, paths);
+        }
+
+        /// <summary>All extensions' warnings for this 戻す, one per paragraph, or null. A failing extension is logged and skipped.</summary>
+        public async Task<string> GetRestoreWarningAsync(RestorePreview preview, CancellationToken cancellationToken)
+        {
+            var parts = new List<string>();
+            foreach (var extension in Extensions)
+            {
+                try
+                {
+                    var text = await extension.GetRestoreWarningAsync(ContextFor(extension), preview, cancellationToken);
+                    if (!string.IsNullOrWhiteSpace(text)) parts.Add(text.Trim());
+                }
+                catch (Exception ex)
+                {
+                    LogExtensionFailure(extension.PackageId, ex);
+                }
+            }
+            return parts.Count == 0 ? null : string.Join("\n\n", parts);
+        }
+
+        /// <summary>
+        /// Every extension's current notices, in package order, wrapped so the step panel can draw them.
+        /// A failing extension is logged and skipped.
+        /// </summary>
+        public async Task<List<ExtensionStepStatus>> GetNoticesAsync(CancellationToken cancellationToken)
+        {
+            var notices = new List<ExtensionStepStatus>();
+            foreach (var extension in Extensions)
+            {
+                try
+                {
+                    var list = await extension.GetNoticesAsync(ContextFor(extension), cancellationToken);
+                    if (list == null) continue;
+                    foreach (var notice in list)
+                    {
+                        if (notice != null) notices.Add(NoticeStep.ToStatus(extension, notice));
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogExtensionFailure(extension.PackageId, ex);
+                }
+            }
+            return notices;
+        }
+
+        /// <summary>
+        /// Logs a failing extension with its package id. Debug.LogException would print only the inner
+        /// exception, so the console would not say which package to blame.
+        /// </summary>
+        internal static void LogExtensionFailure(string packageId, Exception ex)
+        {
+            // The cause goes on the first line, which is all the console shows in its list.
+            Debug.LogError("Shiori: extension " + packageId + " failed: " + ex.Message + "\n" + ex);
+        }
+
         /// <summary>Decorative text must never break the view: a throwing extension is logged and skipped.</summary>
         private string Collect(Func<ShioriExtension, string> getText)
         {
@@ -291,7 +357,7 @@ namespace Shiori.Editor
                 }
                 catch (Exception ex)
                 {
-                    Debug.LogException(new InvalidOperationException("Shiori extension failed: " + extension.PackageId, ex));
+                    LogExtensionFailure(extension.PackageId, ex);
                     continue;
                 }
                 if (string.IsNullOrWhiteSpace(text)) continue;
