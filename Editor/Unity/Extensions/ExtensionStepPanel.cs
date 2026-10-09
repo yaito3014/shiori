@@ -28,6 +28,8 @@ namespace Shiori.Editor
 
             var title = new Label(status.Title);
             title.AddToClassList("shiori-settings-section");
+            // Notices may come without a heading.
+            title.EnableInClassList(HiddenClass, string.IsNullOrEmpty(status.Title) || status.Step is NoticeStep && string.IsNullOrEmpty(status.Step.Title));
             Add(title);
             _message = new Label();
             _message.AddToClassList("shiori-settings-help");

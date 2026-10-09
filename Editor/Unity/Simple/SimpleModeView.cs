@@ -400,6 +400,8 @@ namespace Shiori.Editor
         {
             if (_session.Extensions.Count == 0) return;
             var steps = await _session.EvaluateExtensionStepsAsync(CancellationToken.None);
+            // Notices come after pending steps: a step is something to set up, a notice reports state.
+            steps.AddRange(await _session.GetNoticesAsync(CancellationToken.None));
             _extensionNotices.Clear();
             foreach (var step in steps)
             {
@@ -481,7 +483,13 @@ namespace Shiori.Editor
                 _status = await _repo.GetStatusAsync(ct);
                 RenderSaveStatus();
 
-                var mode = AskRestoreMode(target, _status.HasChanges, _session.GetRestoreWarning(target));
+                string warning = null;
+                if (_session.Extensions.Count > 0)
+                {
+                    var preview = await _session.PreviewRestoreAsync(target, ct);
+                    warning = await _session.GetRestoreWarningAsync(preview, ct);
+                }
+                var mode = AskRestoreMode(target, _status.HasChanges, warning);
                 if (mode == null) return;
 
                 RestoreResult result;

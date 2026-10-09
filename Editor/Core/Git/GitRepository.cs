@@ -157,6 +157,18 @@ namespace Shiori
             return Tokenizer.SplitNul(result.Stdout);
         }
 
+        public async Task<string> ReadFileAtAsync(string revision, string path, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(revision)) throw new ArgumentException("revision is required", nameof(revision));
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("path is required", nameof(path));
+            var spec = revision + ":" + path.Replace('\\', '/');
+            // Ask first so "not there" (or a folder) is not confused with a real git failure.
+            var type = await RunAllowingFailureAsync(cancellationToken, "cat-file", "-t", spec).ConfigureAwait(false);
+            if (!type.Succeeded || type.Stdout.Trim() != "blob") return null;
+            var result = await RunAsync(cancellationToken, "cat-file", "blob", spec).ConfigureAwait(false);
+            return result.Stdout;
+        }
+
         public async Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(revision)) throw new ArgumentException("revision is required", nameof(revision));

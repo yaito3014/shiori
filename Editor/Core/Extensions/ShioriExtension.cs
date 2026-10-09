@@ -48,6 +48,25 @@ namespace Shiori
             return null;
         }
 
+        /// <summary>
+        /// Like <see cref="GetRestoreWarning"/>, but with the paths the 戻す will change, and async so the
+        /// extension can read files as they are in the target (<see cref="IGitRepository.ReadFileAtAsync"/>).
+        /// The core calls this one; the default falls back to <see cref="GetRestoreWarning"/>.
+        /// </summary>
+        public virtual Task<string> GetRestoreWarningAsync(IExtensionContext context, RestorePreview preview, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(GetRestoreWarning(context, preview?.Target));
+        }
+
+        /// <summary>
+        /// Notices to show at the top of simple mode right now. Called whenever the view refreshes, so
+        /// return them from the project's current state rather than remembering events.
+        /// </summary>
+        public virtual Task<IReadOnlyList<ExtensionNotice>> GetNoticesAsync(IExtensionContext context, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<IReadOnlyList<ExtensionNotice>>(Array.Empty<ExtensionNotice>());
+        }
+
         /// <summary>Runs after Unity flushed its edits to disk and before the working tree is recorded.</summary>
         public virtual Task BeforeSaveAsync(IExtensionContext context, CancellationToken cancellationToken)
         {

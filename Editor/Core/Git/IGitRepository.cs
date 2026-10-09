@@ -68,6 +68,12 @@ namespace Shiori
         /// <summary>Paths that differ between two commits (<c>git diff --name-only --no-renames</c>), repository-relative with '/'.</summary>
         Task<IReadOnlyList<string>> GetChangedPathsAsync(string from, string to, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// Text of <paramref name="path"/> as stored in <paramref name="revision"/> (UTF-8), or null when the
+        /// file does not exist there (or is a folder). <paramref name="path"/> is repository-relative.
+        /// </summary>
+        Task<string> ReadFileAtAsync(string revision, string path, CancellationToken cancellationToken);
+
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
 
