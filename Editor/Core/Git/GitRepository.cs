@@ -136,6 +136,34 @@ namespace Shiori
             return StashListParser.Parse(result.Stdout);
         }
 
+        public async Task StashApplyAsync(string stashHash, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(stashHash)) throw new ArgumentException("stash hash is required", nameof(stashHash));
+            await RunAsync(cancellationToken, "stash", "apply", "-q", stashHash).ConfigureAwait(false);
+        }
+
+        public async Task<bool> RevisionExistsAsync(string revision, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(revision)) throw new ArgumentException("revision is required", nameof(revision));
+            var result = await RunAllowingFailureAsync(cancellationToken, "rev-parse", "-q", "--verify", revision + "^{commit}").ConfigureAwait(false);
+            return result.Succeeded && result.Stdout.Trim().Length > 0;
+        }
+
+        public async Task<IReadOnlyList<string>> GetChangedPathsAsync(string from, string to, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(from)) throw new ArgumentException("from is required", nameof(from));
+            if (string.IsNullOrWhiteSpace(to)) throw new ArgumentException("to is required", nameof(to));
+            var result = await RunAsync(cancellationToken, "diff", "--name-only", "--no-renames", "-z", from, to, "--").ConfigureAwait(false);
+            return Tokenizer.SplitNul(result.Stdout);
+        }
+
+        public async Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(revision)) throw new ArgumentException("revision is required", nameof(revision));
+            var result = await RunAsync(cancellationToken, "ls-tree", "-r", "-z", "--name-only", revision).ConfigureAwait(false);
+            return Tokenizer.SplitNul(result.Stdout);
+        }
+
         public async Task<GitIdentity> GetIdentityAsync(CancellationToken cancellationToken)
         {
             var name = await GetConfigAsync("user.name", cancellationToken).ConfigureAwait(false);

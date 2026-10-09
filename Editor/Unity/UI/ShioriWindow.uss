@@ -540,3 +540,24 @@
     color: rgb(214, 78, 78);
     opacity: 1;
 }
+
+/* ---- 取ってある変更 ---- */
+
+.shiori-aside-list {
+    flex-direction: column;
+    margin-top: 4px;
+}
+
+.shiori-aside-item {
+    flex-direction: row;
+    align-items: center;
+    min-height: 22px;
+}
+
+.shiori-aside-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}

@@ -55,6 +55,22 @@ namespace Shiori
 
         Task<IReadOnlyList<StashEntry>> StashListAsync(CancellationToken cancellationToken);
 
+        /// <summary>
+        /// <c>git stash apply</c> of one stash (by hash), keeping the stash. Merges into the working tree,
+        /// so callers check for overlapping changes first (see <c>SetAsideRunner</c>) and only apply on a
+        /// clean working tree. Throws <see cref="GitException"/> when git refuses or leaves conflicts.
+        /// </summary>
+        Task StashApplyAsync(string stashHash, CancellationToken cancellationToken);
+
+        /// <summary>True when <paramref name="revision"/> names an existing commit (for example <c>&lt;stash&gt;^3</c>).</summary>
+        Task<bool> RevisionExistsAsync(string revision, CancellationToken cancellationToken);
+
+        /// <summary>Paths that differ between two commits (<c>git diff --name-only --no-renames</c>), repository-relative with '/'.</summary>
+        Task<IReadOnlyList<string>> GetChangedPathsAsync(string from, string to, CancellationToken cancellationToken);
+
+        /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
+        Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
+
         Task<GitIdentity> GetIdentityAsync(CancellationToken cancellationToken);
 
         /// <summary>Writes <c>user.name</c> / <c>user.email</c> into the repository-local config.</summary>

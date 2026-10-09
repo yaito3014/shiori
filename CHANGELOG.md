@@ -3,6 +3,22 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [Unreleased]
+
+### 日本語
+
+- **取ってある変更を取り出せるようになりました。** 「保存せずに戻す」で取っておいた変更が、かんたんモードの
+  「取ってある変更」に並び、「取り出す」で今のプロジェクトに戻せます。取っておいたあとの履歴と同じファイルを
+  変えているときは、混ざらないように取り出さず、そのファイルを知らせます。
+- かんたんモードの言葉に「送信」「受信」を加えました（今後のリモート機能で使います）。
+
+### English
+
+- **Set-aside changes can be brought back.** Changes kept by 「保存せずに戻す」 are listed under
+  「取ってある変更」 in simple mode, and 取り出す applies them to the project. When a file also changed in
+  the history since, nothing is applied and the file is named, so changes never get mixed.
+- The simple-mode vocabulary gains 送信 / 受信 for the upcoming remote features.
+
 ## [0.1.1] - 2026-10-09
 
 ### 日本語

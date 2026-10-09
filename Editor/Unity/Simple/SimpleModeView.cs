@@ -40,6 +40,9 @@ namespace Shiori.Editor
         private readonly ListView _saveChanges;
         private readonly Foldout _metaWarnings;
         private readonly ScrollView _metaList;
+        private readonly Foldout _asidePanel;
+        private readonly VisualElement _asideList;
+        private readonly List<SetAsideChange> _setAside = new List<SetAsideChange>();
         private readonly Label _historyEmpty;
         private readonly ListView _historyList;
         private readonly Button _historyMore;
@@ -126,6 +129,9 @@ namespace Shiori.Editor
             _saveChanges.selectionChanged += selection => RevealSelectedRow(selection);
             _metaWarnings = this.Q<Foldout>("meta-warnings");
             _metaList = this.Q<ScrollView>("meta-list");
+            _asidePanel = this.Q<Foldout>("aside-panel");
+            _asideList = this.Q<VisualElement>("aside-list");
+            this.Q<Label>("aside-help").text = L10n.Tr("aside.help");
 
             this.Q<Label>("history-title").text = L10n.Tr("simple.history.title");
             var refresh = this.Q<Button>("history-refresh");
@@ -190,10 +196,14 @@ namespace Shiori.Editor
                 _snapshots.Clear();
                 _snapshots.AddRange(log);
                 _historyExhausted = log.Count < PageSize;
+                var stashes = await _repo.StashListAsync(ct);
+                _setAside.Clear();
+                _setAside.AddRange(SetAsideChange.FromStashList(stashes));
 
                 SetError(null);
                 RenderSaveStatus();
                 RenderHistory();
+                RenderSetAside();
 
                 // The meta walk can take a while on big projects; show everything else first.
                 var meta = await CheckMetaAsync();
@@ -536,6 +546,112 @@ namespace Shiori.Editor
             sb.Append(result.ChangedAnything ? L10n.Tr("restore.done", target.Message) : L10n.Tr("restore.nochange", target.Message));
             if (result.StashHash != null) sb.Append('\n').Append(L10n.Tr("restore.stashed"));
             if (result.TouchedProjectSettings) sb.Append('\n').Append(L10n.Tr("restore.projectsettings"));
+            return sb.ToString();
+        }
+
+        // ---- 取ってある変更 ----
+
+        /// <summary>Lists what 「保存せずに戻す」 set aside, newest first. Hidden while there is nothing.</summary>
+        private void RenderSetAside()
+        {
+            _asideList.Clear();
+            _asidePanel.EnableInClassList(HiddenClass, _setAside.Count == 0);
+            if (_setAside.Count == 0) return;
+
+            _asidePanel.text = L10n.Tr("aside.title", _setAside.Count);
+            foreach (var change in _setAside)
+            {
+                var row = new VisualElement();
+                row.AddToClassList("shiori-aside-item");
+                var label = new Label(DescribeSetAside(change));
+                label.AddToClassList("shiori-aside-label");
+                var time = new Label(change.Time == DateTimeOffset.MinValue ? string.Empty : RelativeTime.Format(change.Time, DateTimeOffset.Now));
+                time.AddToClassList("shiori-history-time");
+                var button = new Button(() => TakeOut(change)) { text = L10n.Tr("aside.button") };
+                button.AddToClassList("shiori-small-button");
+                row.Add(label);
+                row.Add(time);
+                row.Add(button);
+                _asideList.Add(row);
+            }
+        }
+
+        private static string DescribeSetAside(SetAsideChange change)
+        {
+            return change.RestoreTarget.Length == 0 ? L10n.Tr("aside.item.untitled") : L10n.Tr("aside.item", change.RestoreTarget);
+        }
+
+        /// <summary>
+        /// 取り出す: only on a clean working tree and only when no file overlaps with what changed since,
+        /// so git never has to merge. Otherwise nothing is touched and the reason is shown.
+        /// </summary>
+        private async void TakeOut(SetAsideChange change)
+        {
+            if (_busy) return;
+            // Unsaved editor edits count as changes too; flush them so the check below sees them.
+            if (!UnitySaver.SaveForRestoreOrCancel()) return;
+
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var ct = CancellationToken.None;
+                _status = await _repo.GetStatusAsync(ct);
+                RenderSaveStatus();
+                if (_status.HasChanges)
+                {
+                    SetNotice(L10n.Tr("aside.dirty"));
+                    return;
+                }
+
+                var when = change.Time == DateTimeOffset.MinValue ? string.Empty : RelativeTime.Format(change.Time, DateTimeOffset.Now);
+                if (!EditorUtility.DisplayDialog(
+                        L10n.Tr("aside.dialog.title"),
+                        L10n.Tr("aside.dialog.body", DescribeSetAside(change), when),
+                        L10n.Tr("aside.dialog.ok"),
+                        L10n.Tr("restore.dialog.cancel"))) return;
+
+                SetAsidePlan plan;
+                using (GitActivity.Begin(L10n.Tr("aside.progress")))
+                {
+                    plan = await SetAsideOperation.RunAsync(_repo, change.Stash, ct);
+                }
+                SetError(null);
+                SetNotice(DescribeTakeOut(plan));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        internal static string DescribeTakeOut(SetAsidePlan plan)
+        {
+            switch (plan.Block)
+            {
+                case SetAsideBlock.WorkingTreeHasChanges:
+                    return L10n.Tr("aside.dirty");
+                case SetAsideBlock.Overlap:
+                    return L10n.Tr("aside.overlap", ListPaths(plan.OverlappingPaths, 5));
+                default:
+                    return L10n.Tr("aside.done", plan.Paths.Count);
+            }
+        }
+
+        internal static string ListPaths(IReadOnlyList<string> paths, int max)
+        {
+            var sb = new StringBuilder();
+            for (var i = 0; i < paths.Count && i < max; i++)
+            {
+                if (i > 0) sb.Append('\n');
+                sb.Append(paths[i]);
+            }
+            if (paths.Count > max) sb.Append('\n').Append(L10n.Tr("aside.more", paths.Count - max));
             return sb.ToString();
         }
 

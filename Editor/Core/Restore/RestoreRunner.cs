@@ -12,7 +12,7 @@ namespace Shiori
     /// </summary>
     internal static class RestoreRunner
     {
-        public const string AutoStashMessage = "shiori:auto-before-restore";
+        public const string AutoStashMessage = SetAsideChange.Marker;
         public const string RestoreMessagePrefix = "Restore: ";
 
         public static async Task<RestoreResult> RunAsync(IGitRepository repository, string targetHash, string targetMessage, RestoreMode mode, string memo, CancellationToken cancellationToken)
@@ -37,7 +37,8 @@ namespace Shiori
                 }
                 else
                 {
-                    stashHash = await repository.StashPushAsync(AutoStashMessage, true, cancellationToken).ConfigureAwait(false);
+                    // The target's memo goes into the stash subject so the list can say what was set aside for which 戻す.
+                    stashHash = await repository.StashPushAsync(SetAsideChange.MessageFor(targetMessage ?? targetHash), true, cancellationToken).ConfigureAwait(false);
                 }
             }
 

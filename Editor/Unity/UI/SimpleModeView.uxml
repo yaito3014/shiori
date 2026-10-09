@@ -18,6 +18,11 @@
             </ui:Foldout>
         </ui:VisualElement>
 
+        <ui:Foldout name="aside-panel" class="shiori-panel shiori-aside-panel shiori-hidden" value="false">
+            <ui:Label name="aside-help" class="shiori-muted" />
+            <ui:VisualElement name="aside-list" class="shiori-aside-list" />
+        </ui:Foldout>
+
         <ui:VisualElement name="history-panel" class="shiori-panel shiori-history-panel">
             <ui:VisualElement class="shiori-row shiori-panel-header">
                 <ui:Label name="history-title" class="shiori-panel-title" />
