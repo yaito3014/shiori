@@ -15,6 +15,7 @@
                 </ui:VisualElement>
                 <ui:VisualElement name="send-row" class="shiori-row shiori-send-row shiori-hidden">
                     <ui:Button name="send-button" class="shiori-small-button" />
+                    <ui:Button name="receive-button" class="shiori-small-button shiori-hidden" />
                     <ui:Label name="send-status" class="shiori-muted shiori-send-status" />
                 </ui:VisualElement>
                 <ui:ListView name="save-changes" class="shiori-save-changes shiori-hidden" />

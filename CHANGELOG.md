@@ -3,6 +3,20 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [Unreleased]
+
+### 日本語
+
+- **受信できるようになりました。** ほかの PC から送信された保存を受け取り、プロジェクトを最新にします。
+  保存していない変更があるときや、この PC とほかの PC で別々に保存していたときは、何も変えずに理由を知らせます。
+- かんたんモードが数分ごとに送信先を確かめ、受信できる保存があると知らせます。この確認でサインイン画面は出ません。
+
+### English
+
+- **受信 (receive).** Saves sent from another PC are received and the project moves forward to them (fast-forward
+  only). With unsaved changes, or when this PC and another one saved separately, nothing changes and the reason is shown.
+- Simple mode checks the 送信先 every few minutes and shows how many saves are waiting, without ever opening a sign-in window.
+
 ## [0.2.0] - 2026-10-10
 
 ### 日本語

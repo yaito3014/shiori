@@ -43,7 +43,14 @@ namespace Shiori.Editor
         private readonly VisualElement _sendRow;
         private readonly Button _sendButton;
         private readonly Label _sendStatusLabel;
+        private readonly Button _receiveButton;
         private SendStatus _sendStatus;
+        private RemoteComparison _comparison;
+
+        /// <summary>When the last background check ran, per editor session; checks are at most this frequent.</summary>
+        private static DateTime _lastBackgroundCheck = DateTime.MinValue;
+        internal static readonly TimeSpan BackgroundCheckInterval = TimeSpan.FromMinutes(5);
+        private bool _checking;
         private readonly Foldout _asidePanel;
         private readonly VisualElement _asideList;
         private readonly List<SetAsideChange> _setAside = new List<SetAsideChange>();
@@ -145,6 +152,10 @@ namespace Shiori.Editor
             _sendButton.tooltip = L10n.Tr("send.tooltip");
             _sendButton.clicked += Send;
             _sendStatusLabel = this.Q<Label>("send-status");
+            _receiveButton = this.Q<Button>("receive-button");
+            _receiveButton.text = L10n.Tr("receive.button");
+            _receiveButton.tooltip = L10n.Tr("receive.tooltip");
+            _receiveButton.clicked += Receive;
             _asidePanel = this.Q<Foldout>("aside-panel");
             _asideList = this.Q<VisualElement>("aside-list");
             this.Q<Label>("aside-help").text = L10n.Tr("aside.help");
@@ -233,6 +244,8 @@ namespace Shiori.Editor
                 _setAside.Clear();
                 _setAside.AddRange(SetAsideChange.FromStashList(stashes));
                 _sendStatus = await SendRunner.GetStatusAsync(_repo, ct);
+                // What the last fetch saw; computed locally. The background check below refreshes it.
+                _comparison = _sendStatus.HasRemote ? await ReceiveRunner.CompareAsync(_repo, ct) : null;
 
                 SetError(null);
                 RenderSaveStatus();
@@ -254,6 +267,33 @@ namespace Shiori.Editor
                 _busy = false;
             }
             RunPendingRefresh();
+            CheckRemoteInBackground();
+        }
+
+        /// <summary>
+        /// Looks for new saves at the 送信先 at most every few minutes. It never asks for sign-in and never
+        /// shows an error: if the 送信先 cannot be reached quietly, the status line simply stays as it was.
+        /// It does not mark the view busy, so the buttons stay usable meanwhile.
+        /// </summary>
+        private async void CheckRemoteInBackground()
+        {
+            if (_checking || _sendStatus == null || !_sendStatus.HasRemote) return;
+            if (DateTime.UtcNow - _lastBackgroundCheck < BackgroundCheckInterval) return;
+            _lastBackgroundCheck = DateTime.UtcNow;
+            _checking = true;
+            try
+            {
+                _comparison = await ReceiveRunner.CheckAsync(_repo, CancellationToken.None);
+                RenderSend();
+            }
+            catch (Exception)
+            {
+                // Offline, signed out or slow: say nothing; 受信 itself will report the real problem.
+            }
+            finally
+            {
+                _checking = false;
+            }
         }
 
         /// <summary>Cheaper refresh for project-changed notifications: working tree and meta only.</summary>
@@ -610,8 +650,58 @@ namespace Shiori.Editor
             if (!hasSaves) return;
             var hasRemote = _sendStatus != null && _sendStatus.HasRemote;
             _sendButton.text = hasRemote ? L10n.Tr("send.button") : L10n.Tr("send.setup");
-            _sendStatusLabel.text = RemoteText.Status(_sendStatus);
+            _receiveButton.EnableInClassList(HiddenClass, !hasRemote);
+            _sendStatusLabel.text = RemoteText.Status(_sendStatus, _comparison);
             _sendStatusLabel.tooltip = hasRemote ? _sendStatus.RemoteUrl : string.Empty;
+        }
+
+        /// <summary>
+        /// 受信: moves the project forward to the 送信先's latest saves. Only fast-forward, only with
+        /// everything saved; split histories are reported and left alone.
+        /// </summary>
+        private async void Receive()
+        {
+            if (_busy || _sendStatus == null || !_sendStatus.HasRemote) return;
+            // Unsaved editor edits would be overwritten by the received files; flush them so the check sees them.
+            if (!UnitySaver.SaveForRestoreOrCancel()) return;
+
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var ct = CancellationToken.None;
+                _status = await _repo.GetStatusAsync(ct);
+                RenderSaveStatus();
+                if (_status.HasChanges)
+                {
+                    SetNotice(L10n.Tr("receive.unsaved"));
+                    return;
+                }
+                if (!EditorUtility.DisplayDialog(
+                        L10n.Tr("receive.dialog.title"),
+                        L10n.Tr("receive.dialog.body"),
+                        L10n.Tr("receive.dialog.ok"),
+                        L10n.Tr("restore.dialog.cancel"))) return;
+
+                ReceiveResult result;
+                using (GitActivity.Begin(L10n.Tr("receive.progress")))
+                {
+                    result = await ReceiveOperation.RunAsync(_repo, ct);
+                }
+                // A fetch just ran, so the next background check can wait.
+                _lastBackgroundCheck = DateTime.UtcNow;
+                SetError(null);
+                SetNotice(RemoteText.Describe(result));
+            }
+            catch (Exception ex)
+            {
+                SetError(RemoteText.DescribeAny(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
         }
 
         /// <summary>送信: pushes saved history to the 送信先. Without one, opens Project Settings > Shiori to set it.</summary>
