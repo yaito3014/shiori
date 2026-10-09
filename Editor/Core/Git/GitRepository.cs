@@ -176,6 +176,91 @@ namespace Shiori
             return Tokenizer.SplitNul(result.Stdout);
         }
 
+        public const string RemoteName = "origin";
+
+        /// <summary>How long Shiori waits for <c>ls-remote</c>; a check should answer quickly or not at all.</summary>
+        public static TimeSpan ListRemoteTimeout = TimeSpan.FromSeconds(60);
+
+        /// <summary>How long Shiori waits for a push; long enough for a first upload of a large project.</summary>
+        public static TimeSpan PushTimeout = TimeSpan.FromMinutes(30);
+
+        public async Task<string> GetRemoteUrlAsync(CancellationToken cancellationToken)
+        {
+            var result = await RunAllowingFailureAsync(cancellationToken, "remote", "get-url", RemoteName).ConfigureAwait(false);
+            if (!result.Succeeded) return null;
+            var url = result.Stdout.Trim();
+            return url.Length == 0 ? null : url;
+        }
+
+        public async Task SetRemoteUrlAsync(string url, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("url is required", nameof(url));
+            var existing = await GetRemoteUrlAsync(cancellationToken).ConfigureAwait(false);
+            if (existing == null) await RunAsync(cancellationToken, "remote", "add", RemoteName, url.Trim()).ConfigureAwait(false);
+            else await RunAsync(cancellationToken, "remote", "set-url", RemoteName, url.Trim()).ConfigureAwait(false);
+        }
+
+        public async Task<IReadOnlyDictionary<string, string>> ListRemoteHeadsAsync(string url, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(url)) throw new ArgumentException("url is required", nameof(url));
+            var result = await RunNetworkAsync(ListRemoteTimeout, cancellationToken, "ls-remote", "--heads", url.Trim()).ConfigureAwait(false);
+            var heads = new Dictionary<string, string>(StringComparer.Ordinal);
+            foreach (var line in result.Stdout.Split('\n'))
+            {
+                var tab = line.IndexOf('\t');
+                if (tab <= 0) continue;
+                heads[line.Substring(tab + 1).Trim()] = line.Substring(0, tab).Trim();
+            }
+            return heads;
+        }
+
+        public async Task<string> GetRemoteTrackingHashAsync(string branch, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(branch)) throw new ArgumentException("branch is required", nameof(branch));
+            var result = await RunAllowingFailureAsync(cancellationToken, "rev-parse", "-q", "--verify", "refs/remotes/" + RemoteName + "/" + branch).ConfigureAwait(false);
+            if (!result.Succeeded) return null;
+            var hash = result.Stdout.Trim();
+            return hash.Length == 0 ? null : hash;
+        }
+
+        public async Task<int> CountCommitsAsync(string range, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(range)) throw new ArgumentException("range is required", nameof(range));
+            var result = await RunAsync(cancellationToken, "rev-list", "--count", range).ConfigureAwait(false);
+            return int.TryParse(result.Stdout.Trim(), out var count) ? count : 0;
+        }
+
+        public async Task PushAsync(string branch, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(branch)) throw new ArgumentException("branch is required", nameof(branch));
+            // --porcelain puts the per-ref result on stdout, where "[rejected]" and friends can be matched.
+            await RunNetworkAsync(PushTimeout, cancellationToken, "push", "--porcelain", "-u", RemoteName, branch).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Runs a command that talks to the network, with a time limit. Failures become
+        /// <see cref="RemoteOperationException"/> classified from stdout and stderr together.
+        /// </summary>
+        private async Task<GitResult> RunNetworkAsync(TimeSpan timeout, CancellationToken cancellationToken, params string[] args)
+        {
+            using (var limit = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+            {
+                limit.CancelAfter(timeout);
+                GitResult result;
+                try
+                {
+                    result = await RunAllowingFailureAsync(limit.Token, args).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException ex) when (!cancellationToken.IsCancellationRequested)
+                {
+                    throw new RemoteOperationException(RemoteErrorKind.Timeout, CommandLine.Join(args), -1, "timed out after " + timeout, ex);
+                }
+                if (result.Succeeded) return result;
+                var output = (result.Stderr + "\n" + result.Stdout).Trim();
+                throw new RemoteOperationException(RemoteErrorClassifier.Classify(output), CommandLine.Join(args), result.ExitCode, output);
+            }
+        }
+
         public async Task<GitIdentity> GetIdentityAsync(CancellationToken cancellationToken)
         {
             var name = await GetConfigAsync("user.name", cancellationToken).ConfigureAwait(false);

@@ -74,6 +74,30 @@ namespace Shiori
         /// </summary>
         Task<string> ReadFileAtAsync(string revision, string path, CancellationToken cancellationToken);
 
+        /// <summary>URL of the 送信先 (the <c>origin</c> remote), or null when none is set.</summary>
+        Task<string> GetRemoteUrlAsync(CancellationToken cancellationToken);
+
+        /// <summary>Points <c>origin</c> at <paramref name="url"/>, adding it when absent. Writes only <c>.git/config</c>.</summary>
+        Task SetRemoteUrlAsync(string url, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Branch heads at <paramref name="url"/> (<c>git ls-remote --heads</c>) as hash per ref name; empty for an
+        /// empty repository. Network operation with a time limit; throws <see cref="RemoteOperationException"/>.
+        /// </summary>
+        Task<IReadOnlyDictionary<string, string>> ListRemoteHeadsAsync(string url, CancellationToken cancellationToken);
+
+        /// <summary>The last known hash of <paramref name="branch"/> on <c>origin</c> (refs/remotes/origin/…), or null.</summary>
+        Task<string> GetRemoteTrackingHashAsync(string branch, CancellationToken cancellationToken);
+
+        /// <summary><c>git rev-list --count</c> of a range such as <c>A..HEAD</c> or <c>HEAD</c>.</summary>
+        Task<int> CountCommitsAsync(string range, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git push -u origin &lt;branch&gt;</c>, never forced. Network operation with a time limit; throws
+        /// <see cref="RemoteOperationException"/> (for example <see cref="RemoteErrorKind.Rejected"/>).
+        /// </summary>
+        Task PushAsync(string branch, CancellationToken cancellationToken);
+
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
 
