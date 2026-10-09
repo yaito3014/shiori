@@ -117,6 +117,11 @@ namespace Shiori.Editor
             SetNotice(null);
             RenderSaveStatus();
             ShowDetail(null);
+
+            // Until the first load completes, say so instead of pretending the project is empty.
+            _saveStatus.text = L10n.Tr("status.loading");
+            _historyEmpty.text = L10n.Tr("status.loading");
+            _historyEmpty.EnableInClassList(HiddenClass, false);
         }
 
         /// <summary>Selects this hash once the history has loaded (used to survive a domain reload).</summary>
@@ -362,6 +367,7 @@ namespace Shiori.Editor
 
         private void RenderHistory()
         {
+            _historyEmpty.text = L10n.Tr("simple.history.empty");
             _historyEmpty.EnableInClassList(HiddenClass, _snapshots.Count > 0);
             _historyMore.EnableInClassList(HiddenClass, _historyExhausted);
             _historyList.RefreshItems();

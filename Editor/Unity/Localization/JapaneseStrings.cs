@@ -18,6 +18,7 @@ namespace Shiori.Editor
             ["error.generic"] = "エラーが発生しました。\n{0}",
             ["error.settings"] = "設定ファイルを読めませんでした。\n{0}",
             ["status.checking"] = "確認中…",
+            ["status.loading"] = "読み込み中…",
 
             ["wizard.title"] = "はじめの設定",
             ["wizard.intro"] = "このプロジェクトの履歴を残す準備をします。上から順にボタンを押してください。",

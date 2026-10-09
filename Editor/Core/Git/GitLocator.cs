@@ -43,6 +43,8 @@ namespace Shiori
                 probed.Add(candidate);
                 if (!File.Exists(candidate)) continue;
 
+                // Both probes launch a process; run them concurrently since the LFS one is the slow starter.
+                var lfsTask = ProbeLfsAsync(candidate, probeDirectory, cancellationToken);
                 GitResult result;
                 try
                 {
@@ -50,29 +52,33 @@ namespace Shiori
                 }
                 catch (GitException)
                 {
+                    await lfsTask.ConfigureAwait(false);
                     continue;
                 }
-                if (!result.Succeeded) continue;
 
                 var versionText = FirstLine(result.Stdout);
-                var version = ParseVersion(versionText);
+                var version = result.Succeeded ? ParseVersion(versionText) : null;
+                var lfsText = await lfsTask.ConfigureAwait(false);
                 if (version == null) continue;
-
-                string lfsText = null;
-                try
-                {
-                    var lfs = await _runner.RunAsync(candidate, new[] { "lfs", "version" }, probeDirectory, cancellationToken).ConfigureAwait(false);
-                    if (lfs.Succeeded) lfsText = FirstLine(lfs.Stdout);
-                }
-                catch (GitException)
-                {
-                    // LFS is optional in M1.
-                }
 
                 return new GitLocation(candidate, version, versionText, lfsText, probed);
             }
 
             return GitLocation.NotFound(probed);
+        }
+
+        /// <summary>LFS is optional in M1; a missing or failing lfs command yields null.</summary>
+        private async Task<string> ProbeLfsAsync(string gitPath, string probeDirectory, CancellationToken cancellationToken)
+        {
+            try
+            {
+                var lfs = await _runner.RunAsync(gitPath, new[] { "lfs", "version" }, probeDirectory, cancellationToken).ConfigureAwait(false);
+                return lfs.Succeeded ? FirstLine(lfs.Stdout) : null;
+            }
+            catch (GitException)
+            {
+                return null;
+            }
         }
 
         /// <summary>Parses "git version 2.47.1.windows.1" into 2.47.1. Returns null when unrecognised.</summary>

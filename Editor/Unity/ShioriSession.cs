@@ -66,9 +66,28 @@ namespace Shiori.Editor
             Settings.SaveUser(User);
         }
 
-        public async Task<GitLocation> LocateGitAsync(CancellationToken cancellationToken)
+        // Locating git costs two process launches; remember the result for the rest of the domain.
+        private static GitLocation _cachedGit;
+        private static string _cachedGitForPath;
+
+        /// <summary>
+        /// Finds git, reusing the result of an earlier search in this domain unless
+        /// <paramref name="refresh"/> is set (the wizard's 再確認) or the configured path changed.
+        /// </summary>
+        public async Task<GitLocation> LocateGitAsync(CancellationToken cancellationToken, bool refresh = false)
         {
-            Git = await new GitLocator(_runner).LocateAsync(User.GitPath, cancellationToken);
+            var configured = User.GitPath ?? string.Empty;
+            if (!refresh && _cachedGit != null && _cachedGit.Found && _cachedGitForPath == configured && File.Exists(_cachedGit.Path))
+            {
+                Git = _cachedGit;
+            }
+            else
+            {
+                Git = await new GitLocator(_runner).LocateAsync(configured, cancellationToken);
+                _cachedGit = Git;
+                _cachedGitForPath = configured;
+            }
+
             Repository = Git.Found && Git.MeetsMinimumVersion
                 ? new GitRepository(_runner, Git.Path, ProjectRoot)
                 : null;
@@ -76,11 +95,11 @@ namespace Shiori.Editor
         }
 
         /// <summary>Gathers everything the wizard shows. Safe to call when git is missing.</summary>
-        public async Task<SetupStatus> EvaluateSetupAsync(CancellationToken cancellationToken)
+        public async Task<SetupStatus> EvaluateSetupAsync(CancellationToken cancellationToken, bool refresh = false)
         {
             var status = new SetupStatus
             {
-                Git = await LocateGitAsync(cancellationToken),
+                Git = await LocateGitAsync(cancellationToken, refresh),
                 ProjectSettingsOk = UnityProjectSettings.IsConfigured,
                 IgnoreFilesOk = AreIgnoreFilesWritten(),
             };

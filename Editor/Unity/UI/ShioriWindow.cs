@@ -144,12 +144,16 @@ namespace Shiori.Editor
             _mainView = null;
             _modeBar.EnableInClassList(HiddenClass, true);
             _content.Clear();
+            var loading = new Label(L10n.Tr("status.loading"));
+            loading.AddToClassList("shiori-loading");
+            _content.Add(loading);
 
             try
             {
                 _session = new ShioriSession(ShioriSession.DetectProjectRoot());
                 var status = await _session.EvaluateSetupAsync(CancellationToken.None);
                 if (generation != _refreshGeneration || _content == null) return;
+                _content.Clear();
 
                 if (!_session.Project.SetupCompleted || !status.IsComplete)
                 {

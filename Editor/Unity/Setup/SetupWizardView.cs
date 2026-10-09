@@ -179,7 +179,7 @@ namespace Shiori.Editor
             SetEnabled(false);
             try
             {
-                _status = await _session.EvaluateSetupAsync(CancellationToken.None);
+                _status = await _session.EvaluateSetupAsync(CancellationToken.None, refresh: true);
             }
             catch (Exception ex)
             {
