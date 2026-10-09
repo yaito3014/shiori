@@ -21,7 +21,7 @@ VRChat 向けの追加機能は同じ一覧にある [Shiori for VRChat](https:/
 "Add package from git URL" で次を指定します。
 
 ```
-https://github.com/yaito3014/shiori.git#v0.1.0
+https://github.com/yaito3014/shiori.git#v0.1.1
 ```
 
 ## 使い方

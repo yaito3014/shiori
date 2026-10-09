@@ -3,6 +3,20 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [0.1.1] - 2026-10-09
+
+### 日本語
+
+- 配布されるパッケージを `Editor/`、`package.json`、`LICENSE` だけにしました。
+  テストや開発者向けの文書は入らなくなり、利用者のプロジェクトの Test Runner に Shiori のテストが出ることもなくなります。
+  動作に変わりはありません。
+
+### English
+
+- The distributed package now contains only `Editor/`, `package.json` and `LICENSE`. Tests and
+  developer documents are no longer shipped, so Shiori's tests no longer appear in a project's
+  Test Runner. No change in behaviour.
+
 ## [0.1.0] - 2026-10-09
 
 ### 日本語
