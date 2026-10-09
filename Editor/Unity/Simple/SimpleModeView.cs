@@ -221,7 +221,7 @@ namespace Shiori.Editor
         {
             if (_busy || _status == null) return;
             // Inspector edits are not on disk yet; git must see what the user sees.
-            if (!UnitySaver.SaveEverythingOrCancel()) return;
+            UnitySaver.SaveForSnapshot();
             _busy = true;
             SetNotice(null);
             _saveButton.SetEnabled(false);
@@ -300,7 +300,7 @@ namespace Shiori.Editor
 
             // In-memory edits are invisible to git and would be written over the restored files later;
             // flush them first (scenes with a prompt, assets silently).
-            if (!UnitySaver.SaveEverythingOrCancel()) return;
+            if (!UnitySaver.SaveForRestoreOrCancel()) return;
 
             _busy = true;
             SetNotice(null);
