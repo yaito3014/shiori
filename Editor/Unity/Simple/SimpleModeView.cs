@@ -192,9 +192,26 @@ namespace Shiori.Editor
 
         // ---- refresh ----
 
+        /// <summary>
+        /// A refresh asked for while the view was busy. It is run once the current work ends, instead of
+        /// being dropped: otherwise a change made meanwhile (say, a new 送信先) would not show until the next focus.
+        /// </summary>
+        private bool _refreshPending;
+
+        private void RunPendingRefresh()
+        {
+            if (!_refreshPending || _busy) return;
+            _refreshPending = false;
+            RefreshAll();
+        }
+
         public async void RefreshAll()
         {
-            if (_busy) return;
+            if (_busy)
+            {
+                _refreshPending = true;
+                return;
+            }
             _busy = true;
             try
             {
@@ -229,12 +246,18 @@ namespace Shiori.Editor
             {
                 _busy = false;
             }
+            RunPendingRefresh();
         }
 
         /// <summary>Cheaper refresh for project-changed notifications: working tree and meta only.</summary>
         public async void RefreshStatus()
         {
-            if (_busy) return;
+            if (_busy)
+            {
+                // A full refresh covers this too.
+                _refreshPending = true;
+                return;
+            }
             _busy = true;
             try
             {
@@ -253,6 +276,7 @@ namespace Shiori.Editor
             {
                 _busy = false;
             }
+            RunPendingRefresh();
         }
 
         private Task<MetaCheckResult> CheckMetaAsync()
@@ -280,6 +304,7 @@ namespace Shiori.Editor
             {
                 _busy = false;
             }
+            RunPendingRefresh();
         }
 
         // ---- 保存 ----
