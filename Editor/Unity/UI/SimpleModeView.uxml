@@ -1,6 +1,7 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement class="shiori-simple">
         <ui:Label name="view-error" class="shiori-error shiori-hidden" />
+        <ui:Label name="view-notice" class="shiori-notice shiori-hidden" />
 
         <ui:VisualElement name="save-panel" class="shiori-panel">
             <ui:Label name="save-title" class="shiori-panel-title" />
@@ -25,7 +26,10 @@
         </ui:VisualElement>
 
         <ui:VisualElement name="detail-panel" class="shiori-panel shiori-detail-panel">
-            <ui:Label name="detail-message" class="shiori-detail-message" />
+            <ui:VisualElement class="shiori-row shiori-panel-header">
+                <ui:Label name="detail-message" class="shiori-detail-message" />
+                <ui:Button name="detail-restore" class="shiori-small-button shiori-hidden" />
+            </ui:VisualElement>
             <ui:Label name="detail-meta" class="shiori-muted" />
             <ui:Label name="detail-empty" class="shiori-muted" />
             <ui:ListView name="detail-files" class="shiori-detail-files" />

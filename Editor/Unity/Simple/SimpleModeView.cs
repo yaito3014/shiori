@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace Shiori.Editor
@@ -16,6 +19,7 @@ namespace Shiori.Editor
         private readonly IGitRepository _repo;
 
         private readonly Label _error;
+        private readonly Label _notice;
         private readonly TextField _message;
         private readonly Button _saveButton;
         private readonly Label _saveStatus;
@@ -25,6 +29,7 @@ namespace Shiori.Editor
         private readonly ListView _historyList;
         private readonly Button _historyMore;
         private readonly Label _detailMessage;
+        private readonly Button _restoreButton;
         private readonly Label _detailMeta;
         private readonly Label _detailEmpty;
         private readonly ListView _detailFiles;
@@ -57,6 +62,7 @@ namespace Shiori.Editor
             UiAssets.Tree("SimpleModeView.uxml").CloneTree(this);
 
             _error = this.Q<Label>("view-error");
+            _notice = this.Q<Label>("view-notice");
             this.Q<Label>("save-title").text = L10n.Tr("simple.save.title");
             _message = this.Q<TextField>("save-message");
             _message.label = L10n.Tr("simple.save.message.label");
@@ -86,6 +92,9 @@ namespace Shiori.Editor
             _historyMore.clicked += LoadMore;
 
             _detailMessage = this.Q<Label>("detail-message");
+            _restoreButton = this.Q<Button>("detail-restore");
+            _restoreButton.text = L10n.Tr("restore.button");
+            _restoreButton.clicked += Restore;
             _detailMeta = this.Q<Label>("detail-meta");
             _detailEmpty = this.Q<Label>("detail-empty");
             _detailFiles = this.Q<ListView>("detail-files");
@@ -96,6 +105,7 @@ namespace Shiori.Editor
             _detailFiles.itemsSource = _rows;
 
             SetError(null);
+            SetNotice(null);
             RenderSaveStatus();
             ShowDetail(null);
         }
@@ -194,6 +204,7 @@ namespace Shiori.Editor
         {
             if (_busy || _status == null || !_status.HasChanges) return;
             _busy = true;
+            SetNotice(null);
             _saveButton.SetEnabled(false);
             try
             {
@@ -242,6 +253,88 @@ namespace Shiori.Editor
             _metaWarnings.text = L10n.Tr("simple.meta.title", issues);
             foreach (var path in meta.MissingMeta) _metaList.Add(new Label(L10n.Tr("simple.meta.missing", path)));
             foreach (var path in meta.OrphanMeta) _metaList.Add(new Label(L10n.Tr("simple.meta.orphan", path)));
+        }
+
+        // ---- 戻す ----
+
+        private async void Restore()
+        {
+            if (_busy) return;
+            var index = SelectedHash == null ? -1 : _snapshots.FindIndex(s => s.Hash == SelectedHash);
+            if (index < 0) return;
+            var target = _snapshots[index];
+
+            // In-memory scene edits are invisible to git; let Unity ask about them first.
+            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var ct = CancellationToken.None;
+                _status = await _repo.GetStatusAsync(ct);
+                RenderSaveStatus();
+
+                var mode = AskRestoreMode(target, _status.HasChanges);
+                if (mode == null) return;
+
+                RestoreResult result;
+                using (GitActivity.Begin(L10n.Tr("restore.progress")))
+                {
+                    result = await RestoreOperation.RunAsync(_repo, target.Hash, target.Message, mode.Value, _message.value, ct);
+                }
+                if (mode.Value == RestoreMode.SaveFirst && result.SavedCommitHash != null) _message.value = string.Empty;
+
+                SetError(null);
+                SetNotice(DescribeRestore(target, result));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        /// <summary>The F4 confirmation. Returns null when the user cancels.</summary>
+        private static RestoreMode? AskRestoreMode(Snapshot target, bool hasChanges)
+        {
+            var title = L10n.Tr("restore.dialog.title");
+            var when = RelativeTime.Format(target.Time, DateTimeOffset.Now);
+            if (hasChanges)
+            {
+                var choice = EditorUtility.DisplayDialogComplex(
+                    title,
+                    L10n.Tr("restore.dialog.dirty", target.Message, when),
+                    L10n.Tr("restore.dialog.savefirst"),
+                    L10n.Tr("restore.dialog.cancel"),
+                    L10n.Tr("restore.dialog.discard"));
+                switch (choice)
+                {
+                    case 0: return RestoreMode.SaveFirst;
+                    case 2: return RestoreMode.StashFirst;
+                    default: return null;
+                }
+            }
+
+            var ok = EditorUtility.DisplayDialog(
+                title,
+                L10n.Tr("restore.dialog.clean", target.Message, when),
+                L10n.Tr("restore.dialog.ok"),
+                L10n.Tr("restore.dialog.cancel"));
+            return ok ? RestoreMode.StashFirst : (RestoreMode?)null;
+        }
+
+        private static string DescribeRestore(Snapshot target, RestoreResult result)
+        {
+            var sb = new StringBuilder();
+            sb.Append(result.ChangedAnything ? L10n.Tr("restore.done", target.Message) : L10n.Tr("restore.nochange", target.Message));
+            if (result.StashHash != null) sb.Append('\n').Append(L10n.Tr("restore.stashed"));
+            if (result.TouchedProjectSettings) sb.Append('\n').Append(L10n.Tr("restore.projectsettings"));
+            return sb.ToString();
         }
 
         // ---- 履歴 ----
@@ -314,6 +407,8 @@ namespace Shiori.Editor
             SelectedHash = snapshot?.Hash;
             _rows.Clear();
 
+            _restoreButton.EnableInClassList(HiddenClass, snapshot == null);
+
             if (snapshot == null)
             {
                 _detailMessage.text = string.Empty;
@@ -385,6 +480,12 @@ namespace Shiori.Editor
         {
             _error.text = text ?? string.Empty;
             _error.EnableInClassList(HiddenClass, string.IsNullOrEmpty(text));
+        }
+
+        private void SetNotice(string text)
+        {
+            _notice.text = text ?? string.Empty;
+            _notice.EnableInClassList(HiddenClass, string.IsNullOrEmpty(text));
         }
 
         private static string Describe(Exception ex)

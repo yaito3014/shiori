@@ -46,6 +46,16 @@
     opacity: 0.7;
 }
 
+.shiori-notice {
+    white-space: normal;
+    padding: 6px 10px;
+    margin: 0 0 8px 0;
+    border-radius: 4px;
+    background-color: rgba(88, 150, 255, 0.12);
+    border-width: 1px;
+    border-color: rgba(88, 150, 255, 0.5);
+}
+
 .shiori-row {
     flex-direction: row;
     align-items: center;
@@ -165,6 +175,8 @@
 .shiori-detail-message {
     -unity-font-style: bold;
     white-space: normal;
+    flex-grow: 1;
+    flex-shrink: 1;
 }
 
 .shiori-detail-files {
