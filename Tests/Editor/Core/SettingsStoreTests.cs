@@ -55,12 +55,37 @@ namespace Shiori.Tests
         [Test]
         public void User_RoundTrips()
         {
-            _store.SaveUser(new ShioriUserSettings { GitPath = @"C:\Program Files\Git\cmd\git.exe", Mode = UiMode.Detail, LastTab = "history" });
+            _store.SaveUser(new ShioriUserSettings { GitPath = @"C:\Program Files\Git\cmd\git.exe", Mode = UiMode.Detail, Modes = ModeAvailability.SimpleOnly, LastTab = "history" });
 
             var loaded = _store.LoadUser();
             Assert.That(loaded.GitPath, Is.EqualTo(@"C:\Program Files\Git\cmd\git.exe"));
             Assert.That(loaded.Mode, Is.EqualTo(UiMode.Detail));
+            Assert.That(loaded.Modes, Is.EqualTo(ModeAvailability.SimpleOnly));
             Assert.That(loaded.LastTab, Is.EqualTo("history"));
+        }
+
+        [Test]
+        public void EffectiveMode_FollowsAvailability()
+        {
+            var settings = new ShioriUserSettings { Mode = UiMode.Detail };
+            Assert.That(settings.EffectiveMode, Is.EqualTo(UiMode.Detail));
+            Assert.That(settings.CanSwitchMode, Is.True);
+
+            settings.Modes = ModeAvailability.SimpleOnly;
+            Assert.That(settings.EffectiveMode, Is.EqualTo(UiMode.Simple));
+            Assert.That(settings.CanSwitchMode, Is.False);
+
+            settings.Modes = ModeAvailability.DetailOnly;
+            settings.Mode = UiMode.Simple;
+            Assert.That(settings.EffectiveMode, Is.EqualTo(UiMode.Detail));
+        }
+
+        [Test]
+        public void Modes_DefaultsToBothAndIgnoresUnknownValues()
+        {
+            Assert.That(_store.LoadUser().Modes, Is.EqualTo(ModeAvailability.Both));
+            _dir.WriteText("UserSettings/Shiori.json", "{\"modes\":\"weird\"}");
+            Assert.That(_store.LoadUser().Modes, Is.EqualTo(ModeAvailability.Both));
         }
 
         [Test]

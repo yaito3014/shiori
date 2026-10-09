@@ -64,6 +64,7 @@ namespace Shiori
             settings.SchemaVersion = GetInt(json, "schemaVersion", settings.SchemaVersion);
             settings.GitPath = GetString(json, "gitPath", settings.GitPath);
             settings.Mode = ParseMode(GetString(json, "mode", null), settings.Mode);
+            settings.Modes = ParseModes(GetString(json, "modes", null), settings.Modes);
             settings.LastTab = GetString(json, "lastTab", settings.LastTab);
             return settings;
         }
@@ -76,6 +77,7 @@ namespace Shiori
                 ["schemaVersion"] = settings.SchemaVersion,
                 ["gitPath"] = settings.GitPath ?? string.Empty,
                 ["mode"] = settings.Mode == UiMode.Detail ? "detail" : "simple",
+                ["modes"] = ModesToString(settings.Modes),
                 ["lastTab"] = settings.LastTab ?? string.Empty,
             };
             WriteObject(UserSettingsPath, json);
@@ -86,6 +88,24 @@ namespace Shiori
             if (string.Equals(text, "detail", StringComparison.OrdinalIgnoreCase)) return UiMode.Detail;
             if (string.Equals(text, "simple", StringComparison.OrdinalIgnoreCase)) return UiMode.Simple;
             return fallback;
+        }
+
+        internal static ModeAvailability ParseModes(string text, ModeAvailability fallback)
+        {
+            if (string.Equals(text, "both", StringComparison.OrdinalIgnoreCase)) return ModeAvailability.Both;
+            if (string.Equals(text, "simple", StringComparison.OrdinalIgnoreCase)) return ModeAvailability.SimpleOnly;
+            if (string.Equals(text, "detail", StringComparison.OrdinalIgnoreCase)) return ModeAvailability.DetailOnly;
+            return fallback;
+        }
+
+        internal static string ModesToString(ModeAvailability modes)
+        {
+            switch (modes)
+            {
+                case ModeAvailability.SimpleOnly: return "simple";
+                case ModeAvailability.DetailOnly: return "detail";
+                default: return "both";
+            }
         }
 
         private static Dictionary<string, object> ReadObject(string path)

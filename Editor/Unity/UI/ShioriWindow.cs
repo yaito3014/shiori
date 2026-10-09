@@ -51,11 +51,13 @@ namespace Shiori.Editor
             GitActivity.Changed += OnGitActivityChanged;
             EditorApplication.projectChanged += OnProjectChanged;
             AssetSaveWatcher.AssetsSaved += OnProjectChanged;
+            ShioriSettingsEvents.Changed += OnSettingsChanged;
         }
 
         private void OnDisable()
         {
             _refreshGeneration++;
+            ShioriSettingsEvents.Changed -= OnSettingsChanged;
             AssetSaveWatcher.AssetsSaved -= OnProjectChanged;
             EditorApplication.projectChanged -= OnProjectChanged;
             GitActivity.Changed -= OnGitActivityChanged;
@@ -101,6 +103,12 @@ namespace Shiori.Editor
             _mainView?.RefreshAll();
         }
 
+        /// <summary>A settings page changed the git path, the mode or the setup flag: start over.</summary>
+        private void OnSettingsChanged()
+        {
+            if (_content != null) Refresh();
+        }
+
         /// <summary>Asset changes and saves arrive in bursts; wait half a second before re-reading the working tree.</summary>
         private void OnProjectChanged()
         {
@@ -115,7 +123,7 @@ namespace Shiori.Editor
         /// <summary>Switches between かんたん and 詳細, remembering the choice in UserSettings/Shiori.json.</summary>
         private void SwitchMode(UiMode mode)
         {
-            if (_session == null || _mainView == null || _session.User.Mode == mode) return;
+            if (_session == null || _mainView == null || !_session.User.CanSwitchMode || _session.User.Mode == mode) return;
             _session.User.Mode = mode;
             try
             {
@@ -190,8 +198,8 @@ namespace Shiori.Editor
 
         private void ShowMain()
         {
-            var mode = _session.User.Mode;
-            _modeBar.EnableInClassList(HiddenClass, false);
+            var mode = _session.User.EffectiveMode;
+            _modeBar.EnableInClassList(HiddenClass, !_session.User.CanSwitchMode);
             _modeSimple.EnableInClassList(ModeActiveClass, mode == UiMode.Simple);
             _modeDetail.EnableInClassList(ModeActiveClass, mode == UiMode.Detail);
 

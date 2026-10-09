@@ -79,6 +79,34 @@
     margin: 2px 0;
 }
 
+/* --- Settings pages --- */
+
+.shiori-settings {
+    flex-direction: column;
+    margin: 2px 10px 10px 10px;
+    max-width: 640px;
+}
+
+.shiori-settings > * {
+    flex-shrink: 0;
+}
+
+.shiori-settings-section {
+    font-size: 13px;
+    -unity-font-style: bold;
+    margin: 12px 0 4px 0;
+}
+
+.shiori-settings-help {
+    white-space: normal;
+    opacity: 0.75;
+    margin: 2px 0;
+}
+
+.shiori-settings-field {
+    margin: 2px 0;
+}
+
 /* --- Mode bar --- */
 
 .shiori-mode-bar {
