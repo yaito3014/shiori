@@ -275,6 +275,17 @@ namespace Shiori.Editor
             // A ListView needs a definite height; show up to a few rows and scroll beyond that.
             _saveChanges.style.height = Math.Min(_pendingRows.Count, PendingRowsVisible) * PendingRowHeight + 4;
             _saveChanges.RefreshItems();
+
+            UpdateRestoreButton();
+        }
+
+        /// <summary>Restoring the current snapshot with nothing pending would change nothing, so the button is disabled then.</summary>
+        private void UpdateRestoreButton()
+        {
+            var selected = SelectedHash;
+            var isCurrentAndClean = selected != null && selected == _head && _status != null && !_status.HasChanges;
+            _restoreButton.SetEnabled(selected != null && !isCurrentAndClean);
+            _restoreButton.tooltip = isCurrentAndClean ? L10n.Tr("restore.nothing") : L10n.Tr("restore.tooltip");
         }
 
         private void RenderMeta(MetaCheckResult meta)
@@ -444,6 +455,7 @@ namespace Shiori.Editor
             _rows.Clear();
 
             _restoreButton.EnableInClassList(HiddenClass, snapshot == null);
+            UpdateRestoreButton();
 
             if (snapshot == null)
             {
