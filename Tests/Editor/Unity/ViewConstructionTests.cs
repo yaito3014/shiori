@@ -160,6 +160,26 @@ namespace Shiori.Editor.Tests
                 yield return null;
             }
             Assert.That(view.Q<Label>("send-status").text, Is.EqualTo(L10n.Tr("send.never", 1)), "counted locally, no network needed");
+            Assert.That(view.Q<Button>("receive-button").ClassListContains("shiori-hidden"), Is.False, "受信 appears with a 送信先");
+            Assert.That(view.Q<Button>("receive-button").text, Is.EqualTo(L10n.Tr("receive.button")));
+        }
+
+        [Test]
+        public void ReceiveMessages_AndTheCombinedStatusLine()
+        {
+            var sent = new SendStatus("u", 0, false);
+            Assert.That(RemoteText.Status(sent, new RemoteComparison(true, 0, 2)), Is.EqualTo(L10n.Tr("receive.waiting", 2)));
+            Assert.That(RemoteText.Status(new SendStatus("u", 1, false), new RemoteComparison(true, 0, 3)),
+                Is.EqualTo(L10n.Tr("send.unsent", 1) + " ・ " + L10n.Tr("receive.waiting", 3)));
+            Assert.That(RemoteText.Status(sent, new RemoteComparison(true, 1, 1)), Is.EqualTo(L10n.Tr("receive.split")));
+            Assert.That(RemoteText.Status(sent, RemoteComparison.Unknown), Is.EqualTo(L10n.Tr("send.uptodate")));
+            Assert.That(RemoteText.Describe(new ReceiveResult(ReceiveOutcome.Received, 4)), Is.EqualTo(L10n.Tr("receive.done", 4)));
+            Assert.That(RemoteText.Describe(new ReceiveResult(ReceiveOutcome.Diverged, 2)), Is.EqualTo(L10n.Tr("receive.diverged", 2)));
+            foreach (ReceiveOutcome outcome in System.Enum.GetValues(typeof(ReceiveOutcome)))
+            {
+                Assert.That(RemoteText.Describe(new ReceiveResult(outcome)), Is.Not.Empty.And.Not.StartWith("receive."), outcome.ToString());
+            }
+            Assert.That(SimpleModeView.BackgroundCheckInterval, Is.GreaterThanOrEqualTo(System.TimeSpan.FromMinutes(1)), "never a tight polling loop");
         }
 
         [Test]
