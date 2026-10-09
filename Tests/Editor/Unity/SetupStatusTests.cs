@@ -15,7 +15,7 @@ namespace Shiori.Editor.Tests
             Assert.That(status.CurrentStep, Is.EqualTo(SetupStatus.GitStep));
             Assert.That(status.IsStepEnabled(SetupStatus.GitStep), Is.True);
             Assert.That(status.IsStepEnabled(SetupStatus.ProjectSettingsStep), Is.False);
-            Assert.That(status.IsStepEnabled(SetupStatus.FirstSaveStep), Is.False);
+            Assert.That(status.IsStepEnabled(status.FirstSaveStep), Is.False);
             Assert.That(status.IsComplete, Is.False);
         }
 
@@ -38,11 +38,11 @@ namespace Shiori.Editor.Tests
 
             status.ProjectSettingsOk = true;
             Assert.That(status.CurrentStep, Is.EqualTo(SetupStatus.IgnoreFilesStep));
-            Assert.That(status.IsStepEnabled(SetupStatus.FirstSaveStep), Is.False);
+            Assert.That(status.IsStepEnabled(status.FirstSaveStep), Is.False);
 
             status.IgnoreFilesOk = true;
-            Assert.That(status.CurrentStep, Is.EqualTo(SetupStatus.FirstSaveStep));
-            Assert.That(status.IsStepEnabled(SetupStatus.FirstSaveStep), Is.True);
+            Assert.That(status.CurrentStep, Is.EqualTo(status.FirstSaveStep));
+            Assert.That(status.IsStepEnabled(status.FirstSaveStep), Is.True);
         }
 
         [Test]
@@ -57,7 +57,7 @@ namespace Shiori.Editor.Tests
             status.HasCommits = true;
             Assert.That(status.FirstSaveDone, Is.True);
             Assert.That(status.IsComplete, Is.True);
-            Assert.That(status.CurrentStep, Is.EqualTo(SetupStatus.FirstSaveStep + 1));
+            Assert.That(status.CurrentStep, Is.EqualTo(status.FirstSaveStep + 1));
         }
 
         [Test]

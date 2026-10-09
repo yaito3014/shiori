@@ -109,10 +109,48 @@ namespace Shiori.Editor.Tests
         [UnityTest]
         public IEnumerator SetupWizardView_Builds()
         {
-            var status = _session.EvaluateSetupAsync(CancellationToken.None);
+            var session = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());
+            var status = session.EvaluateSetupAsync(CancellationToken.None);
             yield return Await(status);
-            var view = new SetupWizardView(_session, status.Result);
+            var view = new SetupWizardView(session, status.Result);
             Assert.That(view.Q<VisualElement>("steps").childCount, Is.EqualTo(4));
+        }
+
+        [UnityTest]
+        public IEnumerator SetupWizardView_ShowsExtensionStepsBetweenIgnoreFilesAndFirstSave()
+        {
+            var extension = new FakeExtension();
+            var session = new ShioriSession(_root, new ProcessGitRunner(), new ShioriExtension[] { extension });
+            var status = session.EvaluateSetupAsync(CancellationToken.None);
+            yield return Await(status);
+            Assert.That(status.Result.StepCount, Is.EqualTo(5));
+            Assert.That(status.Result.FirstSaveStep, Is.EqualTo(5));
+
+            var view = new SetupWizardView(session, status.Result);
+            var steps = view.Q<VisualElement>("steps");
+            Assert.That(steps.childCount, Is.EqualTo(5));
+            Assert.That(steps[3].Q<Label>("step-title").text, Is.EqualTo(FakeExtension.StepTitle));
+            Assert.That(steps[3].Q<Label>("step-message").text, Is.EqualTo(FakeExtension.TodoMessage));
+            Assert.That(steps[4].Q<Label>("step-title").text, Is.EqualTo(L10n.Tr("step4.title")));
+        }
+
+        [UnityTest]
+        public IEnumerator SimpleModeView_ShowsExtensionStatusLineAndHint()
+        {
+            yield return PrepareRepository();
+            var session = new ShioriSession(_root, new ProcessGitRunner(), new ShioriExtension[] { new FakeExtension() });
+            yield return Await(session.LocateGitAsync(CancellationToken.None));
+
+            var view = new SimpleModeView(session);
+            Assert.That(view.Q<Label>("status-line").text, Is.EqualTo(FakeExtension.StatusLine));
+            Assert.That(view.Q<Label>("status-line").ClassListContains("shiori-hidden"), Is.False);
+            Assert.That(view.Q<Label>("save-hint").text, Is.EqualTo(FakeExtension.SaveHint));
+
+            var noExtensions = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());
+            yield return Await(noExtensions.LocateGitAsync(CancellationToken.None));
+            var plain = new SimpleModeView(noExtensions);
+            Assert.That(plain.Q<Label>("status-line").ClassListContains("shiori-hidden"), Is.True);
+            Assert.That(plain.Q<Label>("save-hint").ClassListContains("shiori-hidden"), Is.True);
         }
     }
 }
