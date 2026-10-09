@@ -98,6 +98,23 @@ namespace Shiori
         /// </summary>
         Task PushAsync(string branch, CancellationToken cancellationToken);
 
+        /// <summary>
+        /// <c>git fetch --prune origin</c>, which only updates refs/remotes/origin/… and never the working tree.
+        /// With <paramref name="interactive"/> false the credential manager and ssh are told not to ask
+        /// anything, so a background check can never open a sign-in window; it fails instead.
+        /// Network operation with a time limit; throws <see cref="RemoteOperationException"/>.
+        /// </summary>
+        Task FetchAsync(bool interactive, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git merge --ff-only refs/remotes/origin/&lt;branch&gt;</c>. Fails (and changes nothing) unless HEAD
+        /// can simply move forward. The caller makes sure the working tree is clean.
+        /// </summary>
+        Task FastForwardAsync(string branch, CancellationToken cancellationToken);
+
+        /// <summary>True when the two commits share history (<c>git merge-base</c> finds a common ancestor).</summary>
+        Task<bool> HaveCommonHistoryAsync(string a, string b, CancellationToken cancellationToken);
+
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
 

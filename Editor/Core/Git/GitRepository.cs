@@ -237,6 +237,40 @@ namespace Shiori
             await RunNetworkAsync(PushTimeout, cancellationToken, "push", "--porcelain", "-u", RemoteName, branch).ConfigureAwait(false);
         }
 
+        /// <summary>How long a 受信 fetch may take; generous, because the first one can download a lot.</summary>
+        public static TimeSpan FetchTimeout = TimeSpan.FromMinutes(30);
+
+        /// <summary>How long a background check may take; it must never hold the other git calls for long.</summary>
+        public static TimeSpan BackgroundFetchTimeout = TimeSpan.FromSeconds(20);
+
+        public async Task FetchAsync(bool interactive, CancellationToken cancellationToken)
+        {
+            var args = new List<string>();
+            if (!interactive)
+            {
+                // Git Credential Manager honours credential.interactive; BatchMode stops ssh from asking.
+                args.AddRange(new[] { "-c", "credential.interactive=false", "-c", "core.sshCommand=ssh -o BatchMode=yes" });
+            }
+            args.AddRange(new[] { "fetch", "--prune", "--no-tags", RemoteName });
+            await RunNetworkAsync(interactive ? FetchTimeout : BackgroundFetchTimeout, cancellationToken, args.ToArray()).ConfigureAwait(false);
+        }
+
+        public async Task FastForwardAsync(string branch, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(branch)) throw new ArgumentException("branch is required", nameof(branch));
+            await RunAsync(cancellationToken, "merge", "--ff-only", "-q", "refs/remotes/" + RemoteName + "/" + branch).ConfigureAwait(false);
+        }
+
+        public async Task<bool> HaveCommonHistoryAsync(string a, string b, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(a)) throw new ArgumentException("a is required", nameof(a));
+            if (string.IsNullOrWhiteSpace(b)) throw new ArgumentException("b is required", nameof(b));
+            var result = await RunAllowingFailureAsync(cancellationToken, "merge-base", a, b).ConfigureAwait(false);
+            if (result.ExitCode == 1) return false;
+            if (!result.Succeeded) throw new GitException("merge-base", result.ExitCode, result.Stderr);
+            return result.Stdout.Trim().Length > 0;
+        }
+
         /// <summary>
         /// Runs a command that talks to the network, with a time limit. Failures become
         /// <see cref="RemoteOperationException"/> classified from stdout and stderr together.
