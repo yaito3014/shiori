@@ -50,8 +50,8 @@ shiori-unity/
     Test-DevProject.ps1     # 検証用プロジェクトで EditMode テストを回し、結果を要約する
     Export-UnityPackage.ps1 # 追跡ファイルから ../dist/<name>-<version>.unitypackage を作る（Unity 不要）
     Install-Hooks.ps1       # 上を post-commit フックとして入れる（shiori-vrchat にも使う）
-  docs/
-    adr/                    # 設計判断の記録（後述）
+  docs~/
+    adr/                    # 設計判断の記録（後述）。末尾 ~ なので Unity からも配布物からも外れる
   .github/workflows/
 
 ../shiori-dev/              # 検証用 Unity プロジェクト（リポジトリの外。インストール済みバージョンごとに 1 つ）
@@ -164,7 +164,7 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 
 ## 設計判断の記録
 
-仕様にない設計上の選択をしたときは `docs/adr/NNNN-<slug>.md` に
+仕様にない設計上の選択をしたときは `docs~/adr/NNNN-<slug>.md` に
 「状況 / 選択 / 理由 / 捨てた案」を 10 行程度で残す。
 
 ## まだ決まっていないこと（勝手に決めない）

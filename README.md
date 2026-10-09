@@ -79,7 +79,7 @@ VRChat など環境ごとの機能は別パッケージとして追加できま�
 - `ProjectSettings/Shiori.json` の `extensions` にパッケージごとの設定を持てます。
 
 拡張側のコードは UI を持たず、文言とボタンを返すだけなので、Unity なしの NUnit でテストできます。
-設計の経緯は `docs/adr/0002-extension-api-in-core.md` にあります。
+設計の経緯は `docs~/adr/0002-extension-api-in-core.md` にあります。
 
 ## 開発
 
@@ -104,7 +104,7 @@ pwsh Tools~/Install-Hooks.ps1        # クローン直後に一度
 ```
 
 CI（GitHub Actions）は同じスクリプトでプロジェクトを生成してから GameCI でテストを回します。
-設計上の判断は `docs/adr/` に残しています。
+設計上の判断は `docs~/adr/` に残しています（配布物には含まれません）。
 
 ## ライセンス
 
