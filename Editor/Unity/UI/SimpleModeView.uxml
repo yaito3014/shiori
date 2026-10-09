@@ -12,6 +12,10 @@
                 <ui:Button name="save-button" class="shiori-primary-button" />
                 <ui:Label name="save-status" class="shiori-save-status" />
             </ui:VisualElement>
+            <ui:VisualElement name="send-row" class="shiori-row shiori-send-row shiori-hidden">
+                <ui:Button name="send-button" class="shiori-small-button" />
+                <ui:Label name="send-status" class="shiori-muted shiori-send-status" />
+            </ui:VisualElement>
             <ui:ListView name="save-changes" class="shiori-save-changes shiori-hidden" />
             <ui:Foldout name="meta-warnings" class="shiori-meta-warnings shiori-hidden" value="false">
                 <ui:ScrollView name="meta-list" class="shiori-meta-list" />

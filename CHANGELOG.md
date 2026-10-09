@@ -10,14 +10,20 @@ Each release is described for the people who use it. The developer-level detail 
 - **取ってある変更を取り出せるようになりました。** 「保存せずに戻す」で取っておいた変更が、かんたんモードの
   「取ってある変更」に並び、「取り出す」で今のプロジェクトに戻せます。取っておいたあとの履歴と同じファイルを
   変えているときは、混ざらないように取り出さず、そのファイルを知らせます。
-- かんたんモードの言葉に「送信」「受信」を加えました（今後のリモート機能で使います）。
+- **送信できるようになりました。** 保存した履歴を、GitHub などに作った送信先に送ります。かんたんモードに
+  「送信」ボタンと、まだ送っていない保存の数が出ます。送信先は、はじめの設定の最後（任意）か Project Settings で設定します。
+  サインインや接続の失敗、大きすぎるファイル（GitHub では 1 ファイル 100 MB まで）は、わかりやすい言葉で知らせます。
+- かんたんモードの言葉に「送信」「受信」を加えました。受信は次の版で入ります。
 
 ### English
 
 - **Set-aside changes can be brought back.** Changes kept by 「保存せずに戻す」 are listed under
   「取ってある変更」 in simple mode, and 取り出す applies them to the project. When a file also changed in
   the history since, nothing is applied and the file is named, so changes never get mixed.
-- The simple-mode vocabulary gains 送信 / 受信 for the upcoming remote features.
+- **送信 (send).** Saved history can be pushed to a 送信先 such as an empty private GitHub repository. Simple mode
+  shows a 送信 button and how many saves are not sent yet. The 送信先 is set in an optional last setup step or in
+  Project Settings. Sign-in, connection, size-limit (GitHub: 100 MB per file) and rejection failures get plain messages.
+- The simple-mode vocabulary gains 送信 / 受信. 受信 (receive) comes in the next version.
 
 ## [0.1.1] - 2026-10-09
 

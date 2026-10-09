@@ -561,3 +561,15 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 }
+
+/* ---- 送信 ---- */
+
+.shiori-send-row {
+    margin-top: 4px;
+    align-items: center;
+}
+
+.shiori-send-status {
+    margin-left: 8px;
+    flex-shrink: 1;
+}

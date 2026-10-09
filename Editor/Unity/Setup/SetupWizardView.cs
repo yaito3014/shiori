@@ -22,6 +22,10 @@ namespace Shiori.Editor
         private readonly Label _finishMessage;
 
         private SetupStatus _status;
+        private StepElement _remoteStep;
+        private RemoteSetupPanel _remotePanel;
+        /// <summary>Set after the first save when no 送信先 exists yet: the wizard stays open to offer the optional step.</summary>
+        private bool _offerRemote;
         private TextField _nameField;
         private TextField _emailField;
         private bool _busy;
@@ -65,6 +69,10 @@ namespace Shiori.Editor
                 _steps.Add(element);
                 _container.Add(element.Root);
             }
+            // The optional 送信先 step comes last and is not part of the gating.
+            _remoteStep = new StepElement(_stepTemplate, _status.StepCount + 1, L10n.Tr("step.remote.title"));
+            _remotePanel = null;
+            _container.Add(_remoteStep.Root);
         }
 
         private string TitleOf(int number)
@@ -97,12 +105,53 @@ namespace Shiori.Editor
                 RenderExtensionStep(_steps[number - 1], _status.GetExtensionStep(number), _status.IsStepEnabled(number));
             }
             RenderFirstSaveStep(FirstSaveElement, _status.IsStepEnabled(_status.FirstSaveStep));
+            RenderRemoteStep();
 
-            var showFinish = _status.IsComplete && !_session.Project.SetupCompleted;
+            var showFinish = _status.IsComplete && (!_session.Project.SetupCompleted || _offerRemote);
             _finishRow.EnableInClassList(HiddenClass, !showFinish);
             _finishMessage.text = L10n.Tr("wizard.finish.message");
 
             SetEnabled(!_busy);
+        }
+
+        /// <summary>
+        /// 送信先（任意）: usable once the first save exists (a repository is needed to hold the setting).
+        /// Never blocks 完了; the panel is kept across renders so a typed URL is not lost.
+        /// </summary>
+        private void RenderRemoteStep()
+        {
+            var done = _status.RemoteUrl != null;
+            var enabled = _status.FirstSaveDone;
+            _remoteStep.SetState(done, enabled, _offerRemote && !done, L10n.Tr("step.remote.optional"));
+            _remoteStep.ClearControls();
+            if (done)
+            {
+                _remoteStep.SetMessage(L10n.Tr("step.remote.done", _status.RemoteUrl));
+                _remoteStep.SetDetail(string.Empty);
+                return;
+            }
+            _remoteStep.SetMessage(L10n.Tr("step.remote.explain"));
+            _remoteStep.SetDetail(string.Empty);
+            if (!enabled) return;
+            if (_remotePanel == null)
+            {
+                _remotePanel = new RemoteSetupPanel(_session);
+                _remotePanel.Changed += OnRemoteChanged;
+            }
+            _remoteStep.Controls.Add(_remotePanel);
+        }
+
+        private async void OnRemoteChanged()
+        {
+            try
+            {
+                _status.RemoteUrl = _session.Repository == null ? null : await _session.Repository.GetRemoteUrlAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _remoteStep.SetError(Describe(ex));
+            }
+            Render();
         }
 
         private void RenderGitStep(StepElement step, bool enabled)
@@ -340,7 +389,15 @@ namespace Shiori.Editor
                 Render();
             }
 
-            if (_status.IsComplete) Finish();
+            if (!_status.IsComplete) return;
+            // Offer the optional 送信先 step once before closing; 完了 skips it.
+            if (_status.RemoteUrl == null)
+            {
+                _offerRemote = true;
+                Render();
+                return;
+            }
+            Finish();
         }
 
         private void Finish()
@@ -392,13 +449,14 @@ namespace Shiori.Editor
                 SetError(string.Empty);
             }
 
-            public void SetState(bool done, bool enabled, bool current)
+            public void SetState(bool done, bool enabled, bool current, string pendingText = null)
             {
                 var card = Root.Q<VisualElement>(className: "shiori-step");
                 card.EnableInClassList(DoneClass, done);
                 card.EnableInClassList(CurrentClass, current && !done);
                 card.EnableInClassList(DisabledClass, !enabled && !done);
-                _state.text = done ? L10n.Tr("step.state.done") : enabled ? L10n.Tr("step.state.todo") : L10n.Tr("step.state.blocked");
+                _state.text = done ? L10n.Tr("step.state.done")
+                    : pendingText ?? (enabled ? L10n.Tr("step.state.todo") : L10n.Tr("step.state.blocked"));
             }
 
             public void SetMessage(string text)

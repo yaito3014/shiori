@@ -31,6 +31,12 @@ namespace Shiori.Editor
 
         public bool HasCommits;
 
+        /// <summary>
+        /// The 送信先, or null. The 送信先 step is optional: it never gates <see cref="IsComplete"/>
+        /// and is not counted in <see cref="StepCount"/>.
+        /// </summary>
+        public string RemoteUrl;
+
         /// <summary>Null until read (requires git).</summary>
         public GitIdentity Identity;
 

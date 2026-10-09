@@ -164,6 +164,11 @@ namespace Shiori.Editor
             page.Add(ignoreStatus);
             page.Add(rewrite);
 
+            page.Add(SectionTitle(L10n.Tr("remote.title")));
+            var remote = new RemoteSetupPanel(session);
+            remote.Changed += ShioriSettingsEvents.RaiseChanged;
+            page.Add(remote);
+
             // Extension steps (for example VRChat's ignore list) can be run again from here after setup.
             var extensions = new VisualElement();
             page.Add(extensions);

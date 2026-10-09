@@ -40,6 +40,10 @@ namespace Shiori.Editor
         private readonly ListView _saveChanges;
         private readonly Foldout _metaWarnings;
         private readonly ScrollView _metaList;
+        private readonly VisualElement _sendRow;
+        private readonly Button _sendButton;
+        private readonly Label _sendStatusLabel;
+        private SendStatus _sendStatus;
         private readonly Foldout _asidePanel;
         private readonly VisualElement _asideList;
         private readonly List<SetAsideChange> _setAside = new List<SetAsideChange>();
@@ -129,6 +133,11 @@ namespace Shiori.Editor
             _saveChanges.selectionChanged += selection => RevealSelectedRow(selection);
             _metaWarnings = this.Q<Foldout>("meta-warnings");
             _metaList = this.Q<ScrollView>("meta-list");
+            _sendRow = this.Q<VisualElement>("send-row");
+            _sendButton = this.Q<Button>("send-button");
+            _sendButton.tooltip = L10n.Tr("send.tooltip");
+            _sendButton.clicked += Send;
+            _sendStatusLabel = this.Q<Label>("send-status");
             _asidePanel = this.Q<Foldout>("aside-panel");
             _asideList = this.Q<VisualElement>("aside-list");
             this.Q<Label>("aside-help").text = L10n.Tr("aside.help");
@@ -199,11 +208,13 @@ namespace Shiori.Editor
                 var stashes = await _repo.StashListAsync(ct);
                 _setAside.Clear();
                 _setAside.AddRange(SetAsideChange.FromStashList(stashes));
+                _sendStatus = await SendRunner.GetStatusAsync(_repo, ct);
 
                 SetError(null);
                 RenderSaveStatus();
                 RenderHistory();
                 RenderSetAside();
+                RenderSend();
 
                 // The meta walk can take a while on big projects; show everything else first.
                 var meta = await CheckMetaAsync();
@@ -555,6 +566,53 @@ namespace Shiori.Editor
             if (result.StashHash != null) sb.Append('\n').Append(L10n.Tr("restore.stashed"));
             if (result.TouchedProjectSettings) sb.Append('\n').Append(L10n.Tr("restore.projectsettings"));
             return sb.ToString();
+        }
+
+        // ---- 送信 ----
+
+        /// <summary>The 送信 row: shown once there is something saved. Counting unsent saves needs no network.</summary>
+        private void RenderSend()
+        {
+            var hasSaves = _snapshots.Count > 0;
+            _sendRow.EnableInClassList(HiddenClass, !hasSaves);
+            if (!hasSaves) return;
+            var hasRemote = _sendStatus != null && _sendStatus.HasRemote;
+            _sendButton.text = hasRemote ? L10n.Tr("send.button") : L10n.Tr("send.setup");
+            _sendStatusLabel.text = RemoteText.Status(_sendStatus);
+            _sendStatusLabel.tooltip = hasRemote ? _sendStatus.RemoteUrl : string.Empty;
+        }
+
+        /// <summary>送信: pushes saved history to the 送信先. Without one, opens Project Settings > Shiori to set it.</summary>
+        private async void Send()
+        {
+            if (_busy) return;
+            if (_sendStatus == null || !_sendStatus.HasRemote)
+            {
+                SettingsService.OpenProjectSettings(ShioriSettingsProviders.ProjectPath);
+                return;
+            }
+
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                SendResult result;
+                using (GitActivity.Begin(L10n.Tr("send.progress")))
+                {
+                    result = await SendRunner.SendAsync(_repo, CancellationToken.None);
+                }
+                SetError(null);
+                SetNotice(RemoteText.Describe(result));
+            }
+            catch (Exception ex)
+            {
+                SetError(RemoteText.DescribeAny(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
         }
 
         // ---- 取ってある変更 ----

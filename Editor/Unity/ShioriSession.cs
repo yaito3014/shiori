@@ -123,6 +123,7 @@ namespace Shiori.Editor
                 if (status.Probe.State == RepositoryState.Ready)
                 {
                     status.HasCommits = await Repository.GetHeadAsync(cancellationToken) != null;
+                    status.RemoteUrl = await Repository.GetRemoteUrlAsync(cancellationToken);
                 }
                 status.Identity = await Repository.GetIdentityAsync(cancellationToken);
             }
