@@ -1,6 +1,6 @@
 {
   "name": "com.yaito3014.shiori",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "displayName": "Shiori",
   "description": "A Git client inside the Unity Editor, with a simple mode for non-programmers and a detailed mode for everyone else.",
   "unity": "2022.3",

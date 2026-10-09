@@ -3,7 +3,7 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
-## [Unreleased]
+## [0.2.0] - 2026-10-10
 
 ### 日本語
 
@@ -14,6 +14,9 @@ Each release is described for the people who use it. The developer-level detail 
   「送信」ボタンと、まだ送っていない保存の数が出ます。送信先は、はじめの設定の最後（任意）か Project Settings で設定します。
   サインインや接続の失敗、大きすぎるファイル（GitHub では 1 ファイル 100 MB まで）は、わかりやすい言葉で知らせます。
 - かんたんモードの言葉に「送信」「受信」を加えました。受信は次の版で入ります。
+- ウィンドウが小さいときは、かんたんモード全体をスクロールできるようにしました（今までは下が切れていました）。
+- 処理中に設定を変えたとき、表示が更新されないことがあったのを直しました。
+- 拡張パッケージが失敗したとき、どのパッケージかを Console に出すようにしました。
 
 ### English
 
@@ -24,6 +27,9 @@ Each release is described for the people who use it. The developer-level detail 
   shows a 送信 button and how many saves are not sent yet. The 送信先 is set in an optional last setup step or in
   Project Settings. Sign-in, connection, size-limit (GitHub: 100 MB per file) and rejection failures get plain messages.
 - The simple-mode vocabulary gains 送信 / 受信. 受信 (receive) comes in the next version.
+- Simple mode scrolls as a whole in a short window instead of cutting off the lower panels.
+- A refresh requested while the view was busy is no longer dropped (a new 送信先 could stay invisible).
+- A failing extension package is named in the Console.
 
 ## [0.1.1] - 2026-10-09
 
