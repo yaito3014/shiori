@@ -140,8 +140,10 @@
 
 .shiori-diff-line {
     white-space: nowrap;
+    overflow: hidden;
     padding: 0 6px;
     font-size: 12px;
+    -unity-text-align: middle-left;
 }
 
 .shiori-diff-line--header {

@@ -78,6 +78,12 @@ namespace Shiori.Editor.Tests
             Assert.That(view.Q<Label>("view-error").ClassListContains("shiori-hidden"), Is.True, view.Q<Label>("view-error").text);
         }
 
+        [Test]
+        public void DetailModeView_FindsTheEditorsMonospaceFont()
+        {
+            Assert.That(DetailModeView.Monospace, Is.Not.Null, "none of these paths loaded: " + string.Join(", ", DetailModeView.MonospaceFontPaths));
+        }
+
         [UnityTest]
         public IEnumerator SimpleModeView_BuildsAndLoadsHistory()
         {

@@ -12,7 +12,15 @@ namespace Shiori.Editor
         public const int MaxDiffLines = 4000;
         private const string HiddenClass = "shiori-hidden";
 
+        /// <summary>The editor's own monospace font (used by the Console). Loaded once per domain.</summary>
+        internal static readonly string[] MonospaceFontPaths =
+        {
+            "Fonts/RobotoMono/RobotoMono-Regular.ttf",
+            "Fonts/robotomono/RobotoMono-Regular.ttf",
+        };
+
         private static Font _monospace;
+        private static bool _monospaceSearched;
 
         private readonly IGitRepository _repo;
         private readonly Label _error;
@@ -63,22 +71,31 @@ namespace Shiori.Editor
             _diffLines = this.Q<ListView>("diff-lines");
             _diffLines.makeItem = MakeDiffLine;
             _diffLines.bindItem = BindDiffLine;
-            _diffLines.fixedItemHeight = 16;
+            _diffLines.fixedItemHeight = 18;
             _diffLines.selectionType = SelectionType.None;
             _diffLines.itemsSource = _lines;
-            _diffLines.style.unityFontDefinition = new StyleFontDefinition(FontDefinition.FromFont(Monospace));
+            var monospace = Monospace;
+            if (monospace != null) _diffLines.style.unityFontDefinition = new StyleFontDefinition(FontDefinition.FromFont(monospace));
 
             SetError(null);
             ShowDiff(null, null, false);
         }
 
-        private static Font Monospace
+        /// <summary>
+        /// A font asset bundled with the editor. OS fonts created with CreateDynamicFontFromOSFont
+        /// render garbled in UI Toolkit editor windows, so they are deliberately not used.
+        /// Null when the bundled font cannot be found; the default font is used then.
+        /// </summary>
+        internal static Font Monospace
         {
             get
             {
-                if (_monospace == null)
+                if (_monospaceSearched) return _monospace;
+                _monospaceSearched = true;
+                foreach (var path in MonospaceFontPaths)
                 {
-                    _monospace = Font.CreateDynamicFontFromOSFont(new[] { "Consolas", "Cascadia Mono", "Menlo", "DejaVu Sans Mono", "Courier New" }, 12);
+                    _monospace = UnityEditor.EditorGUIUtility.Load(path) as Font;
+                    if (_monospace != null) break;
                 }
                 return _monospace;
             }
@@ -190,7 +207,7 @@ namespace Shiori.Editor
                 var untracked = change.Kind == ChangeKind.Untracked;
                 var text = await _repo.GetDiffAsync(change.Path, untracked, CancellationToken.None);
                 if (generation != _diffGeneration) return;
-                var lines = DiffParser.Parse(text);
+                var lines = WithoutHeaders(DiffParser.Parse(text));
                 var truncated = lines.Count > MaxDiffLines;
                 ShowDiff(change.Path, lines, truncated);
                 SetError(null);
@@ -200,6 +217,17 @@ namespace Shiori.Editor
                 if (generation != _diffGeneration) return;
                 SetError(Describe(ex));
             }
+        }
+
+        /// <summary>Drops "diff --git", "index", "---", "+++" and similar lines; the file name is already in the title.</summary>
+        internal static List<DiffLine> WithoutHeaders(IReadOnlyList<DiffLine> lines)
+        {
+            var result = new List<DiffLine>(lines.Count);
+            foreach (var line in lines)
+            {
+                if (line.Kind != DiffLineKind.Header) result.Add(line);
+            }
+            return result;
         }
 
         private void ShowDiff(string path, IReadOnlyList<DiffLine> lines, bool truncated)
