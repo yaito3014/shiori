@@ -31,7 +31,7 @@ $stream = "$($Matches[1]).$($Matches[2])"
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
 if ($Destination -eq "") {
-    $Destination = Join-Path (Split-Path $repo -Parent) "shiori-dev\$stream"
+    $Destination = Join-Path (Join-Path (Split-Path $repo -Parent) "shiori-dev") $stream
 }
 if (Test-Path $Destination) { throw "Destination already exists: $Destination" }
 
@@ -60,8 +60,11 @@ $manifest = @"
   ]
 }
 "@
-[IO.File]::WriteAllText((Join-Path $Destination "Packages\manifest.json"), $manifest.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
-[IO.File]::WriteAllText((Join-Path $Destination "ProjectSettings\ProjectVersion.txt"), "m_EditorVersion: $UnityVersion`n", [Text.UTF8Encoding]::new($false))
+# Join-Path (not backslashes) so the script also works on the Linux CI runner.
+$manifestPath = Join-Path (Join-Path $Destination "Packages") "manifest.json"
+$versionPath = Join-Path (Join-Path $Destination "ProjectSettings") "ProjectVersion.txt"
+[IO.File]::WriteAllText($manifestPath, $manifest.Replace("`r`n", "`n"), [Text.UTF8Encoding]::new($false))
+[IO.File]::WriteAllText($versionPath, "m_EditorVersion: $UnityVersion`n", [Text.UTF8Encoding]::new($false))
 
 Write-Host "Dev project created: $Destination"
 Write-Host "Package reference:   $packageRef"

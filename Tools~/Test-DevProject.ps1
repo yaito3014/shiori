@@ -29,7 +29,7 @@ if ($UnityVersion -notmatch '^(\d+)\.(\d+)\.') { throw "UnityVersion must look l
 $stream = "$($Matches[1]).$($Matches[2])"
 
 $repo = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path
-if ($ProjectPath -eq "") { $ProjectPath = Join-Path (Split-Path $repo -Parent) "shiori-dev\$stream" }
+if ($ProjectPath -eq "") { $ProjectPath = Join-Path (Join-Path (Split-Path $repo -Parent) "shiori-dev") $stream }
 if (-not (Test-Path $ProjectPath)) { throw "Dev project not found: $ProjectPath (create it with New-DevProject.ps1)" }
 $ProjectPath = (Resolve-Path $ProjectPath).Path
 
@@ -37,7 +37,7 @@ $unity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$UnityVersion\Editor\Unit
 if (-not (Test-Path $unity)) { throw "Unity $UnityVersion is not installed at $unity" }
 
 # Outputs go under Logs/, which the Shiori .gitignore block ignores, so they never show up as changes.
-$outDir = Join-Path $ProjectPath "Logs\shiori-tests"
+$outDir = Join-Path (Join-Path $ProjectPath "Logs") "shiori-tests"
 New-Item -ItemType Directory -Force $outDir | Out-Null
 if ($LogFile -eq "") { $LogFile = Join-Path $outDir "unity-test.log" }
 $results = Join-Path $outDir "TestResults.xml"
