@@ -36,8 +36,11 @@ $ProjectPath = (Resolve-Path $ProjectPath).Path
 $unity = Join-Path $env:ProgramFiles "Unity\Hub\Editor\$UnityVersion\Editor\Unity.exe"
 if (-not (Test-Path $unity)) { throw "Unity $UnityVersion is not installed at $unity" }
 
-if ($LogFile -eq "") { $LogFile = Join-Path $ProjectPath "unity-test.log" }
-$results = Join-Path $ProjectPath "TestResults.xml"
+# Outputs go under Logs/, which the Shiori .gitignore block ignores, so they never show up as changes.
+$outDir = Join-Path $ProjectPath "Logs\shiori-tests"
+New-Item -ItemType Directory -Force $outDir | Out-Null
+if ($LogFile -eq "") { $LogFile = Join-Path $outDir "unity-test.log" }
+$results = Join-Path $outDir "TestResults.xml"
 if (Test-Path $results) { Remove-Item $results }
 
 $args = @("-batchmode", "-nographics", "-projectPath", $ProjectPath, "-logFile", $LogFile)
