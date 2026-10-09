@@ -10,6 +10,7 @@
                 <ui:Button name="save-button" class="shiori-primary-button" />
                 <ui:Label name="save-status" class="shiori-save-status" />
             </ui:VisualElement>
+            <ui:ListView name="save-changes" class="shiori-save-changes shiori-hidden" />
             <ui:Foldout name="meta-warnings" class="shiori-meta-warnings shiori-hidden" value="false">
                 <ui:ScrollView name="meta-list" class="shiori-meta-list" />
             </ui:Foldout>

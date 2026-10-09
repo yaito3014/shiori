@@ -24,7 +24,9 @@
 
 .shiori-content {
     flex-grow: 1;
+    min-height: 0;
     padding: 6px;
+    overflow: hidden;
 }
 
 .shiori-content--locked {
@@ -99,19 +101,23 @@
 
 .shiori-detail {
     flex-grow: 1;
+    min-height: 0;
 }
 
 .shiori-detail-split {
     flex-grow: 1;
+    min-height: 0;
 }
 
 .shiori-files-pane {
     flex-grow: 1;
+    min-height: 0;
     margin-bottom: 4px;
 }
 
 .shiori-files-list {
     flex-grow: 1;
+    min-height: 0;
 }
 
 .shiori-file-status {
@@ -123,6 +129,7 @@
 
 .shiori-diff-pane {
     flex-grow: 1;
+    min-height: 0;
     margin-top: 4px;
 }
 
@@ -136,6 +143,7 @@
 
 .shiori-diff-lines {
     flex-grow: 1;
+    min-height: 0;
 }
 
 .shiori-diff-line {
@@ -174,9 +182,11 @@
 
 .shiori-simple {
     flex-grow: 1;
+    min-height: 0;
 }
 
 .shiori-panel {
+    flex-shrink: 0;
     margin: 0 0 8px 0;
     padding: 6px 8px;
     border-radius: 4px;
@@ -206,6 +216,13 @@
     flex-shrink: 1;
 }
 
+.shiori-save-changes {
+    margin-top: 4px;
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.3);
+    border-radius: 3px;
+}
+
 .shiori-meta-warnings {
     margin-top: 4px;
 }
@@ -221,12 +238,14 @@
 
 .shiori-history-panel {
     flex-grow: 1;
+    flex-shrink: 1;
     min-height: 120px;
 }
 
 .shiori-history-list {
     flex-grow: 1;
-    min-height: 80px;
+    flex-shrink: 1;
+    min-height: 60px;
 }
 
 .shiori-history-item {

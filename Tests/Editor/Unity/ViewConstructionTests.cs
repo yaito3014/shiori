@@ -91,13 +91,19 @@ namespace Shiori.Editor.Tests
 
             var view = new SimpleModeView(_session);
             view.RefreshAll();
+            var pending = view.Q<ListView>("save-changes");
             var started = System.DateTime.UtcNow;
-            while (view.Q<ListView>("history-list").itemsSource.Count == 0)
+            // Both the history and the pending-change list are rendered once status and log have loaded.
+            while (view.Q<ListView>("history-list").itemsSource.Count == 0 || pending.ClassListContains("shiori-hidden"))
             {
-                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("history did not load");
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("history / pending changes did not load");
                 yield return null;
             }
             Assert.That(view.Q<Label>("view-error").ClassListContains("shiori-hidden"), Is.True, view.Q<Label>("view-error").text);
+
+            // The pending changes (a.txt modified, new.txt untracked) are listed under the 保存 button.
+            Assert.That(pending.itemsSource.Count, Is.EqualTo(2));
+            Assert.That(view.Q<Label>("save-status").text, Does.Contain("2"));
         }
 
         [UnityTest]

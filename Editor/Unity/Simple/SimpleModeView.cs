@@ -23,6 +23,7 @@ namespace Shiori.Editor
         private readonly TextField _message;
         private readonly Button _saveButton;
         private readonly Label _saveStatus;
+        private readonly ListView _saveChanges;
         private readonly Foldout _metaWarnings;
         private readonly ScrollView _metaList;
         private readonly Label _historyEmpty;
@@ -36,6 +37,7 @@ namespace Shiori.Editor
 
         private readonly List<Snapshot> _snapshots = new List<Snapshot>();
         private readonly List<ChangeRow> _rows = new List<ChangeRow>();
+        private readonly List<ChangeRow> _pendingRows = new List<ChangeRow>();
         private WorktreeStatus _status;
         private string _head;
         private bool _busy;
@@ -72,6 +74,12 @@ namespace Shiori.Editor
             _saveButton.text = L10n.Tr("simple.save.button");
             _saveButton.clicked += Save;
             _saveStatus = this.Q<Label>("save-status");
+            _saveChanges = this.Q<ListView>("save-changes");
+            _saveChanges.makeItem = MakeFileItem;
+            _saveChanges.bindItem = (element, index) => BindFileItem(element, _pendingRows, index);
+            _saveChanges.fixedItemHeight = 20;
+            _saveChanges.selectionType = SelectionType.None;
+            _saveChanges.itemsSource = _pendingRows;
             _metaWarnings = this.Q<Foldout>("meta-warnings");
             _metaList = this.Q<ScrollView>("meta-list");
 
@@ -100,7 +108,7 @@ namespace Shiori.Editor
             _detailEmpty = this.Q<Label>("detail-empty");
             _detailFiles = this.Q<ListView>("detail-files");
             _detailFiles.makeItem = MakeFileItem;
-            _detailFiles.bindItem = BindFileItem;
+            _detailFiles.bindItem = (element, index) => BindFileItem(element, _rows, index);
             _detailFiles.fixedItemHeight = 20;
             _detailFiles.selectionType = SelectionType.None;
             _detailFiles.itemsSource = _rows;
@@ -132,12 +140,14 @@ namespace Shiori.Editor
                 _snapshots.Clear();
                 _snapshots.AddRange(log);
                 _historyExhausted = log.Count < PageSize;
-                var meta = await CheckMetaAsync();
 
                 SetError(null);
                 RenderSaveStatus();
-                RenderMeta(meta);
                 RenderHistory();
+
+                // The meta walk can take a while on big projects; show everything else first.
+                var meta = await CheckMetaAsync();
+                RenderMeta(meta);
             }
             catch (Exception ex)
             {
@@ -157,9 +167,9 @@ namespace Shiori.Editor
             try
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
-                var meta = await CheckMetaAsync();
                 SetError(null);
                 RenderSaveStatus();
+                var meta = await CheckMetaAsync();
                 RenderMeta(meta);
             }
             catch (Exception ex)
@@ -234,6 +244,9 @@ namespace Shiori.Editor
             RefreshAll();
         }
 
+        private const int PendingRowHeight = 20;
+        private const int PendingRowsVisible = 7;
+
         private void RenderSaveStatus()
         {
             var stats = _status?.Stats;
@@ -242,6 +255,13 @@ namespace Shiori.Editor
             _saveStatus.text = hasChanges
                 ? L10n.Tr("simple.save.changes", stats.Total, stats.Added, stats.Modified, stats.Deleted)
                 : L10n.Tr("simple.save.nochanges");
+
+            _pendingRows.Clear();
+            if (hasChanges) _pendingRows.AddRange(ChangeRowBuilder.Build(_status.Changes));
+            _saveChanges.EnableInClassList(HiddenClass, _pendingRows.Count == 0);
+            // A ListView needs a definite height; show up to a few rows and scroll beyond that.
+            _saveChanges.style.height = Math.Min(_pendingRows.Count, PendingRowsVisible) * PendingRowHeight + 4;
+            _saveChanges.RefreshItems();
         }
 
         private void RenderMeta(MetaCheckResult meta)
@@ -447,10 +467,10 @@ namespace Shiori.Editor
             return row;
         }
 
-        private void BindFileItem(VisualElement element, int index)
+        private static void BindFileItem(VisualElement element, List<ChangeRow> rows, int index)
         {
-            if (index < 0 || index >= _rows.Count) return;
-            var row = _rows[index];
+            if (index < 0 || index >= rows.Count) return;
+            var row = rows[index];
             element.Q<Label>("kind").text = KindLabel(row.Kind);
             var path = element.Q<Label>("path");
             path.text = row.MetaOnly ? L10n.Tr("row.metaonly", row.DisplayPath) : row.DisplayPath;
