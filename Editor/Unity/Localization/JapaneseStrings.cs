@@ -4,7 +4,7 @@ namespace Shiori.Editor
 {
     /// <summary>
     /// Japanese UI strings. Plain, short sentences for people who do not know git.
-    /// Simple-mode vocabulary is fixed: 保存 / 履歴 / 戻す / バリエーション / 同期.
+    /// Simple-mode vocabulary is fixed: 保存 / 履歴 / 戻す / バリエーション / 送信 / 受信.
     /// </summary>
     internal static class JapaneseStrings
     {

@@ -159,7 +159,8 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 - UI は **UI Toolkit**（UXML + USS + C#）。IMGUI は使わない。
 - UI の表示文字列はコードに直書きせず `Editor/Unity/Localization/` の
   テーブルから引く。M1 では ja を埋め、en はキーをそのまま出してよい。
-- かんたんモードの語彙は固定: **保存 / 履歴 / 戻す / バリエーション / 同期**。
+- かんたんモードの語彙は固定: **保存 / 履歴 / 戻す / バリエーション / 送信 / 受信**。
+  送信（push）と受信（pull）は別のボタンにし、一つの「同期」にまとめない（競合を起こしやすいため）。
   かんたんモードの UI に commit / stage / branch / push / pull という語を出さない。
 - `public` API は `Shiori.Core` のインターフェースと DTO のみ。実装クラスは `internal`。
   テストから触る場合は `InternalsVisibleTo` を使う。
