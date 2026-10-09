@@ -78,8 +78,9 @@ namespace Shiori.Editor
             _saveChanges.makeItem = MakeFileItem;
             _saveChanges.bindItem = (element, index) => BindFileItem(element, _pendingRows, index);
             _saveChanges.fixedItemHeight = 20;
-            _saveChanges.selectionType = SelectionType.None;
+            _saveChanges.selectionType = SelectionType.Single;
             _saveChanges.itemsSource = _pendingRows;
+            _saveChanges.selectionChanged += selection => RevealSelectedRow(selection);
             _metaWarnings = this.Q<Foldout>("meta-warnings");
             _metaList = this.Q<ScrollView>("meta-list");
 
@@ -110,8 +111,9 @@ namespace Shiori.Editor
             _detailFiles.makeItem = MakeFileItem;
             _detailFiles.bindItem = (element, index) => BindFileItem(element, _rows, index);
             _detailFiles.fixedItemHeight = 20;
-            _detailFiles.selectionType = SelectionType.None;
+            _detailFiles.selectionType = SelectionType.Single;
             _detailFiles.itemsSource = _rows;
+            _detailFiles.selectionChanged += selection => RevealSelectedRow(selection);
 
             SetError(null);
             SetNotice(null);
@@ -471,6 +473,16 @@ namespace Shiori.Editor
             row.Add(path);
             row.Add(meta);
             return row;
+        }
+
+        /// <summary>Highlights the asset in the Project window; nothing happens for deleted files or settings.</summary>
+        private static void RevealSelectedRow(IEnumerable<object> selection)
+        {
+            foreach (var item in selection)
+            {
+                if (item is ChangeRow row) AssetNavigator.Reveal(row.Path);
+                break;
+            }
         }
 
         private static void BindFileItem(VisualElement element, List<ChangeRow> rows, int index)

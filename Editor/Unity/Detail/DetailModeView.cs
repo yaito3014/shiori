@@ -193,6 +193,7 @@ namespace Shiori.Editor
             else
             {
                 LoadDiff(selected);
+                AssetNavigator.Reveal(selected.Path);
             }
             SelectionChanged?.Invoke(SelectedPath);
         }
