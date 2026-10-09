@@ -10,6 +10,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# The test runner posts a check run with the results; say so explicitly instead of relying on repository defaults.
+permissions:
+  contents: read
+  checks: write
+
 jobs:
   editmode-tests:
     name: EditMode (${{ matrix.unity }})
