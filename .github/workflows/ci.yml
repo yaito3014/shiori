@@ -19,15 +19,17 @@ jobs:
       matrix:
         unity: [2022.3.22f1, 6000.6.0f1]
     env:
-      # The repository root is the package, so the project must sit in a folder Unity ignores
-      # (trailing ~); otherwise Unity imports the project, its Library included, as package content.
+      # The repository root is the package. The project is generated in a folder Unity ignores
+      # (trailing ~) and gets its own embedded copy of the package (-Embed): a file: reference
+      # back to the repository would make the Package Manager see the project's Library as
+      # package changes and re-resolve forever.
       PROJECT: ci-project~/${{ matrix.unity }}
     steps:
       - uses: actions/checkout@v4
 
       - name: Create the dev project
         shell: pwsh
-        run: ./Tools~/New-DevProject.ps1 -UnityVersion ${{ matrix.unity }} -Destination $env:PROJECT
+        run: ./Tools~/New-DevProject.ps1 -UnityVersion ${{ matrix.unity }} -Destination $env:PROJECT -Embed
 
       - uses: actions/cache@v4
         with:
