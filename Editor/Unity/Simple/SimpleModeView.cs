@@ -19,9 +19,11 @@ namespace Shiori.Editor
 
         private readonly Label _error;
         private readonly Label _notice;
+        private readonly Label _statusLine;
         private readonly TextField _message;
         private readonly Button _saveButton;
         private readonly Label _saveStatus;
+        private readonly Label _saveHint;
         private readonly ListView _saveChanges;
         private readonly Foldout _metaWarnings;
         private readonly ScrollView _metaList;
@@ -66,6 +68,8 @@ namespace Shiori.Editor
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
             this.Q<Label>("save-title").text = L10n.Tr("simple.save.title");
+            _statusLine = this.Q<Label>("status-line");
+            _saveHint = this.Q<Label>("save-hint");
             _message = this.Q<TextField>("save-message");
             _message.label = L10n.Tr("simple.save.message.label");
             _message.RegisterValueChangedCallback(e => DraftChanged?.Invoke(e.newValue));
@@ -116,6 +120,7 @@ namespace Shiori.Editor
 
             SetError(null);
             SetNotice(null);
+            RenderExtensionText();
             RenderSaveStatus();
             ShowDetail(null);
 
@@ -148,6 +153,7 @@ namespace Shiori.Editor
                 _historyExhausted = log.Count < PageSize;
 
                 SetError(null);
+                RenderExtensionText();
                 RenderSaveStatus();
                 RenderHistory();
 
@@ -174,6 +180,7 @@ namespace Shiori.Editor
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
                 SetError(null);
+                RenderExtensionText();
                 RenderSaveStatus();
                 var meta = await CheckMetaAsync();
                 RenderMeta(meta);
@@ -230,18 +237,21 @@ namespace Shiori.Editor
                 using (GitActivity.Begin(L10n.Tr("simple.save.progress")))
                 {
                     var ct = CancellationToken.None;
+                    await _session.RunBeforeSaveAsync(ct);
                     await _repo.AddAllAsync(ct);
                     var staged = await _repo.GetStatusAsync(ct);
+                    string hash = null;
                     if (staged.HasChanges)
                     {
                         var message = SnapshotMessage.Resolve(_message.value, staged.Stats);
-                        await _repo.CommitAsync(message, ct);
+                        hash = await _repo.CommitAsync(message, ct);
                         _message.value = string.Empty;
                     }
                     else
                     {
                         SetNotice(L10n.Tr("simple.save.nochanges"));
                     }
+                    await _session.RunAfterSaveAsync(hash, ct);
                 }
                 SetError(null);
             }
@@ -258,6 +268,18 @@ namespace Shiori.Editor
 
         private const int PendingRowHeight = 20;
         private const int PendingRowsVisible = 7;
+
+        /// <summary>Text contributed by extensions: a status line at the top and a hint under 保存. Hidden when there is none.</summary>
+        private void RenderExtensionText()
+        {
+            var statusLine = _session.GetStatusLine();
+            _statusLine.text = statusLine ?? string.Empty;
+            _statusLine.EnableInClassList(HiddenClass, string.IsNullOrEmpty(statusLine));
+
+            var hint = _session.GetSaveHint();
+            _saveHint.text = hint ?? string.Empty;
+            _saveHint.EnableInClassList(HiddenClass, string.IsNullOrEmpty(hint));
+        }
 
         private void RenderSaveStatus()
         {
@@ -321,13 +343,14 @@ namespace Shiori.Editor
                 _status = await _repo.GetStatusAsync(ct);
                 RenderSaveStatus();
 
-                var mode = AskRestoreMode(target, _status.HasChanges);
+                var mode = AskRestoreMode(target, _status.HasChanges, _session.GetRestoreWarning(target));
                 if (mode == null) return;
 
                 RestoreResult result;
                 using (GitActivity.Begin(L10n.Tr("restore.progress")))
                 {
                     result = await RestoreOperation.RunAsync(_repo, target.Hash, target.Message, mode.Value, _message.value, ct);
+                    await _session.RunAfterRestoreAsync(result, ct);
                 }
                 if (mode.Value == RestoreMode.SaveFirst && result.SavedCommitHash != null) _message.value = string.Empty;
 
@@ -345,8 +368,8 @@ namespace Shiori.Editor
             RefreshAll();
         }
 
-        /// <summary>The F4 confirmation. Returns null when the user cancels.</summary>
-        private static RestoreMode? AskRestoreMode(Snapshot target, bool hasChanges)
+        /// <summary>The F4 confirmation. Extension warnings (if any) follow the main text. Returns null when the user cancels.</summary>
+        private static RestoreMode? AskRestoreMode(Snapshot target, bool hasChanges, string warning)
         {
             var title = L10n.Tr("restore.dialog.title");
             var when = RelativeTime.Format(target.Time, DateTimeOffset.Now);
@@ -354,7 +377,7 @@ namespace Shiori.Editor
             {
                 var choice = EditorUtility.DisplayDialogComplex(
                     title,
-                    L10n.Tr("restore.dialog.dirty", target.Message, when),
+                    WithWarning(L10n.Tr("restore.dialog.dirty", target.Message, when), warning),
                     L10n.Tr("restore.dialog.savefirst"),
                     L10n.Tr("restore.dialog.cancel"),
                     L10n.Tr("restore.dialog.discard"));
@@ -368,10 +391,15 @@ namespace Shiori.Editor
 
             var ok = EditorUtility.DisplayDialog(
                 title,
-                L10n.Tr("restore.dialog.clean", target.Message, when),
+                WithWarning(L10n.Tr("restore.dialog.clean", target.Message, when), warning),
                 L10n.Tr("restore.dialog.ok"),
                 L10n.Tr("restore.dialog.cancel"));
             return ok ? RestoreMode.StashFirst : (RestoreMode?)null;
+        }
+
+        internal static string WithWarning(string text, string warning)
+        {
+            return string.IsNullOrEmpty(warning) ? text : text + "\n\n" + warning;
         }
 
         private static string DescribeRestore(Snapshot target, RestoreResult result)

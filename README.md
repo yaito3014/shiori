@@ -56,6 +56,22 @@ https://github.com/yaito3014/shiori.git
   `AssetDatabase` の自動更新を止め、終わってから同期的に更新します。
 - 認証は git（credential manager）に任せます。Shiori はトークンやパスワードを保持しません。
 
+## 拡張パッケージ
+
+VRChat など環境ごとの機能は別パッケージとして追加できます（例: [shiori-vrchat](https://github.com/yaito3014/shiori-vrchat)）。
+拡張パッケージは `Shiori.Core` の `ShioriExtension` を継承したクラスを 1 つ置くだけで、Shiori が自動で見つけます。
+
+- はじめの設定に手順を追加できます（「履歴に含めないもの」の後、「最初の保存」の前）。
+  追加した手順は `Project Settings > Shiori` からもう一度実行できます。
+  はじめの設定が終わったあとに追加の手順が「未完了」に戻っても、ウィンドウは通常の画面のままです。
+- `.gitignore` / `.gitattributes` に、パッケージごとのブロックを追記できます（Shiori のブロックや手書きの行は触りません）。
+- かんたんモードの上部に 1 行の状態表示、「保存」の下に案内文、「戻す」の確認に注意書きを足せます。
+- 保存 / 戻す の前後に処理を挟めます。
+- `ProjectSettings/Shiori.json` の `extensions` にパッケージごとの設定を持てます。
+
+拡張側のコードは UI を持たず、文言とボタンを返すだけなので、Unity なしの NUnit でテストできます。
+設計の経緯は `docs/adr/0002-extension-api-in-core.md` にあります。
+
 ## 開発
 
 リポジトリのルートがパッケージ本体です。検証用の Unity プロジェクトはリポジトリの外に置きます

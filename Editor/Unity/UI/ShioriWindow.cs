@@ -165,7 +165,9 @@ namespace Shiori.Editor
                 if (generation != _refreshGeneration || _content == null) return;
                 _content.Clear();
 
-                if (!_session.Project.SetupCompleted || !status.IsComplete)
+                // After setup, a pending extension step (say, a newly added VCC package) is handled from
+                // Project Settings rather than by pulling the user back into the wizard.
+                if (!_session.Project.SetupCompleted || !status.CoreComplete)
                 {
                     ShowWizard(status);
                 }

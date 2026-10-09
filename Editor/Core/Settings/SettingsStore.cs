@@ -42,6 +42,14 @@ namespace Shiori
             if (json == null) return settings;
             settings.SchemaVersion = GetInt(json, "schemaVersion", settings.SchemaVersion);
             settings.SetupCompleted = GetBool(json, "setupCompleted", settings.SetupCompleted);
+            if (json.TryGetValue("extensions", out var extensions) && extensions is Dictionary<string, object> sections)
+            {
+                foreach (var pair in sections)
+                {
+                    // A section that is not an object is dropped; nothing in the core depends on it.
+                    if (pair.Value is Dictionary<string, object> section) settings.Extensions[pair.Key] = section;
+                }
+            }
             return settings;
         }
 
@@ -53,6 +61,13 @@ namespace Shiori
                 ["schemaVersion"] = settings.SchemaVersion,
                 ["setupCompleted"] = settings.SetupCompleted,
             };
+            // Only written when some extension stored something, so projects without add-ons keep the M1 file shape.
+            var sections = new Dictionary<string, object>(StringComparer.Ordinal);
+            foreach (var pair in settings.Extensions)
+            {
+                if (pair.Value != null && pair.Value.Count > 0) sections[pair.Key] = pair.Value;
+            }
+            if (sections.Count > 0) json["extensions"] = sections;
             WriteObject(ProjectSettingsPath, json);
         }
 

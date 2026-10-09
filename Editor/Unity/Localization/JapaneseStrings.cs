@@ -53,6 +53,8 @@ namespace Shiori.Editor
             ["step3.explain"] = "Library や Temp など、履歴に残す必要のないフォルダを除外する設定を .gitignore と .gitattributes に追記します。すでにある内容はそのまま残します。",
             ["step3.apply"] = "追記する",
 
+            ["step.ext.error"] = "この手順を確認できませんでした。\n{0}",
+
             ["step4.title"] = "最初の保存",
             ["step4.explain"] = "プロジェクトの今の状態を、最初の履歴として保存します。",
             ["step4.done"] = "最初の保存は済んでいます。",
@@ -121,6 +123,7 @@ namespace Shiori.Editor
             ["settings.setup.help"] = "チェックを外すと、次に開いたときに「はじめの設定」をもう一度表示します。",
             ["settings.ignore.title"] = "履歴に含めないもの",
             ["settings.ignore.missing"] = ".gitignore と .gitattributes に Shiori の設定がありません。",
+            ["settings.ext.title"] = "追加の設定",
             ["settings.project.file"] = "保存先: ProjectSettings/Shiori.json（履歴に含まれます）",
 
             ["mode.label"] = "モード",

@@ -9,8 +9,9 @@ namespace Shiori
     /// Deliberately small JSON reader/writer for Shiori's own settings files (see docs/adr/0001).
     /// Objects become <c>Dictionary&lt;string, object&gt;</c>, arrays <c>List&lt;object&gt;</c>,
     /// numbers <c>double</c> (or <c>long</c> when integral), plus string / bool / null.
+    /// Public so extensions can read small JSON files of their own (such as a VPM manifest) without another dependency.
     /// </summary>
-    internal static class MiniJson
+    public static class MiniJson
     {
         public static object Parse(string json)
         {

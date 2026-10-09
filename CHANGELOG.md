@@ -7,6 +7,12 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Added
 
+- Extension API for add-on packages (`ShioriExtension` in `Shiori.Core`): wizard steps rendered by
+  the core from UI-free `SetupStepView`s, save / restore hooks, status line and save hint in simple
+  mode, restore-dialog warnings, a per-package section in `ProjectSettings/Shiori.json`, and
+  managed blocks with ids so several packages can share `.gitignore` / `.gitattributes`.
+  Extensions are discovered with `TypeCache`; the core works unchanged without any.
+- Project Settings > Shiori lists extension steps so they can be run again after setup.
 - Setup wizard: git detection with guidance, Force Text / Visible Meta Files,
   managed `.gitignore` / `.gitattributes` blocks, first snapshot with identity entry.
 - Simple mode (かんたん): 保存 with memo and generated message, pending-change list,

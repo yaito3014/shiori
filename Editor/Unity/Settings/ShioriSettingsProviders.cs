@@ -164,8 +164,35 @@ namespace Shiori.Editor
             page.Add(ignoreStatus);
             page.Add(rewrite);
 
+            // Extension steps (for example VRChat's ignore list) can be run again from here after setup.
+            var extensions = new VisualElement();
+            page.Add(extensions);
+            FillExtensionSteps(extensions, session, status);
+
             page.Add(Help(L10n.Tr("settings.project.file")));
             page.Add(status);
+        }
+
+        private static async void FillExtensionSteps(VisualElement root, ShioriSession session, Label status)
+        {
+            if (session.Extensions.Count == 0) return;
+            try
+            {
+                var steps = await session.EvaluateExtensionStepsAsync(CancellationToken.None);
+                if (root.panel == null) return;
+                if (steps.Count == 0) return;
+                root.Add(SectionTitle(L10n.Tr("settings.ext.title")));
+                foreach (var step in steps)
+                {
+                    var panel = new ExtensionStepPanel(step);
+                    panel.Changed += ShioriSettingsEvents.RaiseChanged;
+                    root.Add(panel);
+                }
+            }
+            catch (Exception ex)
+            {
+                status.text = L10n.Tr("error.generic", ex.Message);
+            }
         }
 
         // ---- helpers ----

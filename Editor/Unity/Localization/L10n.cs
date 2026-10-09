@@ -16,6 +16,9 @@ namespace Shiori.Editor
     {
         public static UiLanguage Language { get; set; } = UiLanguage.Japanese;
 
+        /// <summary>ISO 639-1 code of <see cref="Language"/>, handed to extensions so they can pick their own table.</summary>
+        public static string LanguageCode => Language == UiLanguage.Japanese ? "ja" : "en";
+
         public static string Tr(string key)
         {
             if (Language == UiLanguage.Japanese && JapaneseStrings.Table.TryGetValue(key, out var text)) return text;

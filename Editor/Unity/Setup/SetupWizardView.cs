@@ -1,18 +1,23 @@
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Shiori.Editor
 {
-    /// <summary>The four-step setup wizard (F1). Steps unlock top to bottom; each re-renders from <see cref="SetupStatus"/>.</summary>
+    /// <summary>
+    /// The setup wizard (F1). Steps unlock top to bottom; each re-renders from <see cref="SetupStatus"/>.
+    /// Three core steps, then one per installed extension, then the first save.
+    /// </summary>
     internal sealed class SetupWizardView : VisualElement
     {
         private const string HiddenClass = "shiori-hidden";
 
         private readonly ShioriSession _session;
         private readonly VisualTreeAsset _stepTemplate;
-        private readonly StepElement[] _steps = new StepElement[SetupStatus.FirstSaveStep];
+        private readonly VisualElement _container;
+        private readonly List<StepElement> _steps = new List<StepElement>();
         private readonly VisualElement _finishRow;
         private readonly Label _finishMessage;
 
@@ -41,20 +46,43 @@ namespace Shiori.Editor
             finishButton.text = L10n.Tr("wizard.finish.button");
             finishButton.clicked += Finish;
 
-            var container = this.Q<VisualElement>("steps");
-            var titles = new[] { "step1.title", "step2.title", "step3.title", "step4.title" };
-            for (var i = 0; i < _steps.Length; i++)
-            {
-                _steps[i] = new StepElement(_stepTemplate, i + 1, L10n.Tr(titles[i]));
-                container.Add(_steps[i].Root);
-            }
-
+            _container = this.Q<VisualElement>("steps");
+            BuildSteps();
             Render();
+        }
+
+        private StepElement FirstSaveElement => _steps[_status.FirstSaveStep - 1];
+
+        /// <summary>Creates one element per step. Rebuilt only when the step count changes (it should not within a domain).</summary>
+        private void BuildSteps()
+        {
+            if (_steps.Count == _status.StepCount) return;
+            _container.Clear();
+            _steps.Clear();
+            for (var number = 1; number <= _status.StepCount; number++)
+            {
+                var element = new StepElement(_stepTemplate, number, TitleOf(number));
+                _steps.Add(element);
+                _container.Add(element.Root);
+            }
+        }
+
+        private string TitleOf(int number)
+        {
+            switch (number)
+            {
+                case SetupStatus.GitStep: return L10n.Tr("step1.title");
+                case SetupStatus.ProjectSettingsStep: return L10n.Tr("step2.title");
+                case SetupStatus.IgnoreFilesStep: return L10n.Tr("step3.title");
+            }
+            if (_status.IsExtensionStep(number)) return _status.GetExtensionStep(number).Title;
+            return L10n.Tr("step4.title");
         }
 
         private void Render()
         {
-            for (var i = 0; i < _steps.Length; i++)
+            BuildSteps();
+            for (var i = 0; i < _steps.Count; i++)
             {
                 var number = i + 1;
                 _steps[i].SetState(_status.IsStepDone(number), _status.IsStepEnabled(number), _status.CurrentStep == number);
@@ -64,7 +92,11 @@ namespace Shiori.Editor
             RenderGitStep(_steps[0], _status.IsStepEnabled(SetupStatus.GitStep));
             RenderProjectSettingsStep(_steps[1], _status.IsStepEnabled(SetupStatus.ProjectSettingsStep));
             RenderIgnoreFilesStep(_steps[2], _status.IsStepEnabled(SetupStatus.IgnoreFilesStep));
-            RenderFirstSaveStep(_steps[3], _status.IsStepEnabled(SetupStatus.FirstSaveStep));
+            for (var number = SetupStatus.FirstExtensionStep; number < _status.FirstSaveStep; number++)
+            {
+                RenderExtensionStep(_steps[number - 1], _status.GetExtensionStep(number), _status.IsStepEnabled(number));
+            }
+            RenderFirstSaveStep(FirstSaveElement, _status.IsStepEnabled(_status.FirstSaveStep));
 
             var showFinish = _status.IsComplete && !_session.Project.SetupCompleted;
             _finishRow.EnableInClassList(HiddenClass, !showFinish);
@@ -127,6 +159,30 @@ namespace Shiori.Editor
             step.SetMessage(L10n.Tr("step3.explain"));
             step.SetDetail(string.Empty);
             step.AddButtons(enabled, (L10n.Tr("step3.apply"), WriteIgnoreFiles));
+        }
+
+        /// <summary>An extension step is drawn from its <see cref="SetupStepView"/>; the extension never touches the UI.</summary>
+        private void RenderExtensionStep(StepElement step, ExtensionStepStatus status, bool enabled)
+        {
+            if (status.Error != null)
+            {
+                step.SetMessage(L10n.Tr("step.ext.error", status.Error.Message));
+                step.SetDetail(string.Empty);
+                return;
+            }
+
+            var view = status.View;
+            step.SetMessage(view.Message);
+            step.SetDetail(view.Detail);
+            if (view.Actions.Count == 0) return;
+
+            var buttons = new (string, Action)[view.Actions.Count];
+            for (var i = 0; i < view.Actions.Count; i++)
+            {
+                var action = view.Actions[i];
+                buttons[i] = (action.Label, () => RunExtensionAction(step, status, action));
+            }
+            step.AddButtons(enabled, buttons);
         }
 
         private void RenderFirstSaveStep(StepElement step, bool enabled)
@@ -220,10 +276,33 @@ namespace Shiori.Editor
             Render();
         }
 
+        /// <summary>Runs one extension button, then re-evaluates that step so the wizard shows the new state.</summary>
+        private async void RunExtensionAction(StepElement step, ExtensionStepStatus status, SetupStepAction action)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetEnabled(false);
+            step.SetError(string.Empty);
+            try
+            {
+                await action.Run(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                step.SetError(Describe(ex));
+            }
+            finally
+            {
+                await ShioriSession.EvaluateExtensionStepAsync(status, CancellationToken.None);
+                _busy = false;
+                Render();
+            }
+        }
+
         private async void FirstSave()
         {
             if (_busy) return;
-            var step = _steps[3];
+            var step = FirstSaveElement;
             step.SetError(string.Empty);
 
             var repository = _session.Repository;
@@ -273,7 +352,7 @@ namespace Shiori.Editor
             }
             catch (Exception ex)
             {
-                _steps[3].SetError(Describe(ex));
+                FirstSaveElement.SetError(Describe(ex));
                 return;
             }
             Completed?.Invoke();

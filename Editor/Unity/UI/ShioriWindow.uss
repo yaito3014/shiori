@@ -480,3 +480,21 @@
     white-space: normal;
     margin-bottom: 4px;
 }
+
+/* ---- extension text (status line, save hint, settings panels) ---- */
+
+.shiori-status-line {
+    margin: 0 0 4px 0;
+}
+
+.shiori-save-hint {
+    margin-top: 4px;
+}
+
+.shiori-ext-step {
+    flex-direction: column;
+}
+
+.shiori-ext-step > .shiori-step-controls-row {
+    margin-top: 4px;
+}

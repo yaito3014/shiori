@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
@@ -7,8 +9,8 @@ using UnityEngine;
 namespace Shiori.Editor
 {
     /// <summary>
-    /// Per-project services shared by every view: settings, git location, and the repository.
-    /// Created by the window after each domain reload.
+    /// Per-project services shared by every view: settings, git location, the repository, and
+    /// the installed extensions. Created by the window after each domain reload.
     /// </summary>
     internal sealed class ShioriSession
     {
@@ -16,11 +18,15 @@ namespace Shiori.Editor
         public const string GitDownloadUrl = "https://git-scm.com/downloads";
 
         private readonly IGitRunner _runner;
+        private readonly Dictionary<string, ExtensionContext> _contexts = new Dictionary<string, ExtensionContext>(StringComparer.Ordinal);
 
         public string ProjectRoot { get; }
         public SettingsStore Settings { get; }
         public ShioriProjectSettings Project { get; private set; }
         public ShioriUserSettings User { get; private set; }
+
+        /// <summary>Installed add-ons, sorted by package id. Empty when none is installed.</summary>
+        public IReadOnlyList<ShioriExtension> Extensions { get; }
 
         /// <summary>Null until <see cref="LocateGitAsync"/> has run.</summary>
         public GitLocation Git { get; private set; }
@@ -35,10 +41,15 @@ namespace Shiori.Editor
         {
         }
 
-        internal ShioriSession(string projectRoot, IGitRunner runner)
+        internal ShioriSession(string projectRoot, IGitRunner runner) : this(projectRoot, runner, ExtensionRegistry.All)
+        {
+        }
+
+        internal ShioriSession(string projectRoot, IGitRunner runner, IReadOnlyList<ShioriExtension> extensions)
         {
             ProjectRoot = projectRoot ?? throw new ArgumentNullException(nameof(projectRoot));
             _runner = runner ?? throw new ArgumentNullException(nameof(runner));
+            Extensions = extensions ?? Array.Empty<ShioriExtension>();
             Settings = new SettingsStore(projectRoot);
             ReloadSettings();
         }
@@ -104,6 +115,8 @@ namespace Shiori.Editor
                 IgnoreFilesOk = AreIgnoreFilesWritten(),
             };
 
+            status.ExtensionSteps.AddRange(await EvaluateExtensionStepsAsync(cancellationToken));
+
             if (Repository != null)
             {
                 status.Probe = await Repository.ProbeAsync(cancellationToken);
@@ -152,14 +165,14 @@ namespace Shiori.Editor
             return BlockMatches(GitIgnorePath, ShioriBlocks.GitIgnore) && BlockMatches(GitAttributesPath, ShioriBlocks.GitAttributes);
         }
 
-        /// <summary>Appends or updates the Shiori blocks; user lines are preserved (F1 step 3).</summary>
+        /// <summary>Appends or updates the Shiori blocks; user lines and extension blocks are preserved (F1 step 3).</summary>
         public void WriteIgnoreFiles()
         {
             ManagedBlockWriter.UpsertFile(GitIgnorePath, ShioriBlocks.GitIgnore);
             ManagedBlockWriter.UpsertFile(GitAttributesPath, ShioriBlocks.GitAttributes);
         }
 
-        private static bool BlockMatches(string path, System.Collections.Generic.IReadOnlyList<string> expected)
+        private static bool BlockMatches(string path, IReadOnlyList<string> expected)
         {
             if (!File.Exists(path)) return false;
             var actual = ManagedBlockWriter.ReadBlock(File.ReadAllText(path));
@@ -169,6 +182,121 @@ namespace Shiori.Editor
                 if (!string.Equals(actual[i], expected[i], StringComparison.Ordinal)) return false;
             }
             return true;
+        }
+
+        // ---- extensions ----
+
+        /// <summary>The context handed to <paramref name="extension"/>; one per package for the life of the session.</summary>
+        public IExtensionContext ContextFor(ShioriExtension extension)
+        {
+            if (extension == null) throw new ArgumentNullException(nameof(extension));
+            if (!_contexts.TryGetValue(extension.PackageId, out var context))
+            {
+                context = new ExtensionContext(ProjectRoot, L10n.LanguageCode, () => Repository, () => Project, SaveProjectSettings, extension.PackageId);
+                _contexts[extension.PackageId] = context;
+            }
+            return context;
+        }
+
+        /// <summary>Creates and evaluates every extension step. A failing extension yields an errored entry instead of throwing.</summary>
+        public async Task<List<ExtensionStepStatus>> EvaluateExtensionStepsAsync(CancellationToken cancellationToken)
+        {
+            var result = new List<ExtensionStepStatus>();
+            foreach (var extension in Extensions)
+            {
+                IReadOnlyList<SetupStep> steps;
+                try
+                {
+                    steps = extension.CreateSetupSteps(ContextFor(extension)) ?? Array.Empty<SetupStep>();
+                }
+                catch (Exception ex)
+                {
+                    result.Add(new ExtensionStepStatus(extension, null) { Error = ex });
+                    continue;
+                }
+
+                foreach (var step in steps)
+                {
+                    if (step == null) continue;
+                    var status = new ExtensionStepStatus(extension, step);
+                    await EvaluateExtensionStepAsync(status, cancellationToken);
+                    result.Add(status);
+                }
+            }
+            return result;
+        }
+
+        /// <summary>Re-runs one step's evaluation, recording the exception instead of throwing.</summary>
+        public static async Task EvaluateExtensionStepAsync(ExtensionStepStatus status, CancellationToken cancellationToken)
+        {
+            if (status.Step == null) return;
+            try
+            {
+                status.View = await status.Step.EvaluateAsync(cancellationToken) ?? new SetupStepView(false, string.Empty);
+                status.Error = null;
+            }
+            catch (Exception ex)
+            {
+                status.View = null;
+                status.Error = ex;
+            }
+        }
+
+        public async Task RunBeforeSaveAsync(CancellationToken cancellationToken)
+        {
+            foreach (var extension in Extensions) await extension.BeforeSaveAsync(ContextFor(extension), cancellationToken);
+        }
+
+        public async Task RunAfterSaveAsync(string commitHash, CancellationToken cancellationToken)
+        {
+            foreach (var extension in Extensions) await extension.AfterSaveAsync(ContextFor(extension), commitHash, cancellationToken);
+        }
+
+        public async Task RunAfterRestoreAsync(RestoreResult result, CancellationToken cancellationToken)
+        {
+            foreach (var extension in Extensions) await extension.AfterRestoreAsync(ContextFor(extension), result, cancellationToken);
+        }
+
+        /// <summary>All non-empty save hints, one per line, or null.</summary>
+        public string GetSaveHint()
+        {
+            return Collect(extension => extension.GetSaveHint(ContextFor(extension)));
+        }
+
+        /// <summary>All non-empty status lines, one per line, or null.</summary>
+        public string GetStatusLine()
+        {
+            return Collect(extension => extension.GetStatusLine(ContextFor(extension)));
+        }
+
+        /// <summary>All non-empty restore warnings for <paramref name="target"/>, one per line, or null.</summary>
+        public string GetRestoreWarning(Snapshot target)
+        {
+            return Collect(extension => extension.GetRestoreWarning(ContextFor(extension), target));
+        }
+
+        /// <summary>Decorative text must never break the view: a throwing extension is logged and skipped.</summary>
+        private string Collect(Func<ShioriExtension, string> getText)
+        {
+            StringBuilder sb = null;
+            foreach (var extension in Extensions)
+            {
+                string text;
+                try
+                {
+                    text = getText(extension);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(new InvalidOperationException("Shiori extension failed: " + extension.PackageId, ex));
+                    continue;
+                }
+                if (string.IsNullOrWhiteSpace(text)) continue;
+                if (sb == null) sb = new StringBuilder();
+                else sb.Append('\n');
+                sb.Append(text.Trim());
+            }
+            return sb?.ToString();
         }
     }
 }

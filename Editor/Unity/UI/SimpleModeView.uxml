@@ -5,11 +5,13 @@
 
         <ui:VisualElement name="save-panel" class="shiori-panel">
             <ui:Label name="save-title" class="shiori-panel-title" />
+            <ui:Label name="status-line" class="shiori-muted shiori-status-line shiori-hidden" />
             <ui:TextField name="save-message" class="shiori-save-message" />
             <ui:VisualElement class="shiori-row">
                 <ui:Button name="save-button" class="shiori-primary-button" />
                 <ui:Label name="save-status" class="shiori-save-status" />
             </ui:VisualElement>
+            <ui:Label name="save-hint" class="shiori-muted shiori-save-hint shiori-hidden" />
             <ui:ListView name="save-changes" class="shiori-save-changes shiori-hidden" />
             <ui:Foldout name="meta-warnings" class="shiori-meta-warnings shiori-hidden" value="false">
                 <ui:ScrollView name="meta-list" class="shiori-meta-list" />
