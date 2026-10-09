@@ -39,6 +39,8 @@ namespace Shiori.Editor
             _repo = session.Repository ?? throw new InvalidOperationException("git repository is not available");
 
             UiAssets.Tree("DetailModeView.uxml").CloneTree(this);
+            // The cloned tree sits inside this element; without this the split view collapses to zero height.
+            style.flexGrow = 1;
 
             _error = this.Q<Label>("view-error");
             this.Q<Label>("files-title").text = L10n.Tr("detail.files.title");

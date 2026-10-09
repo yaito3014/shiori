@@ -30,6 +30,7 @@ namespace Shiori.Editor
             _status = status ?? throw new ArgumentNullException(nameof(status));
 
             UiAssets.Tree("SetupWizardView.uxml").CloneTree(this);
+            style.flexGrow = 1;
             _stepTemplate = UiAssets.Tree("SetupStep.uxml");
 
             this.Q<Label>("wizard-title").text = L10n.Tr("wizard.title");

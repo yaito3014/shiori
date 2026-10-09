@@ -125,7 +125,15 @@ namespace Shiori.Editor
                 return;
             }
             _content.Clear();
-            ShowMain();
+            try
+            {
+                ShowMain();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                ShowError(L10n.Tr("error.generic", ex.Message));
+            }
         }
 
         /// <summary>Re-evaluates the project and shows either the wizard or the main view.</summary>
@@ -162,6 +170,7 @@ namespace Shiori.Editor
             }
             catch (Exception ex)
             {
+                Debug.LogException(ex);
                 ShowError(L10n.Tr("error.generic", ex.Message));
             }
         }

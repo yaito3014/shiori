@@ -60,6 +60,7 @@ namespace Shiori.Editor
             _repo = session.Repository ?? throw new InvalidOperationException("git repository is not available");
 
             UiAssets.Tree("SimpleModeView.uxml").CloneTree(this);
+            style.flexGrow = 1;
 
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
