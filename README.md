@@ -18,11 +18,14 @@ VRChat 向けの追加機能は同じ一覧にある [Shiori for VRChat](https:/
 
 ### Package Manager（それ以外の Unity プロジェクト）
 
-"Add package from git URL" で次を指定します。
+1. [最新のリリース](https://github.com/yaito3014/shiori/releases/latest)から `com.yaito3014.shiori-<version>.tgz` をダウンロードします。
+2. Package Manager の「+」から "Install package from tarball..." を選び、ダウンロードしたファイルを指定します。
 
-```
-https://github.com/yaito3014/shiori.git#v0.1.1
-```
+この `.tgz` は Unity の署名付きです。Unity 6.3 以降では Package Manager に署名済み（発行元 KakeyamaY）と表示されます。
+Unity 2022.3 でもそのまま入れられます。
+
+`main` の最新を試したいときは "Add package from git URL" で `https://github.com/yaito3014/shiori.git` を指定します
+（署名はありません）。
 
 ## 使い方
 
