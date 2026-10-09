@@ -6,7 +6,9 @@
   A .unitypackage is a gzipped tar with one folder per asset, named by the asset's GUID, holding
   "asset" (the file; absent for folders), "asset.meta" and "pathname". The pathname is
   "Packages/<package name>/<relative path>", so importing the package embeds it under Packages/.
-  Files without a .meta (hidden files, Tools~, .github) are skipped, like Unity would.
+  Files without a .meta (hidden files, Tools~, .github) are skipped, like Unity would, and so is
+  everything marked export-ignore in .gitattributes (Tests, CLAUDE.md, README, CHANGELOG), which keeps
+  the archive identical in content to the VPM zip.
 
 .PARAMETER PackageRoot
   Repository root that is the package (contains package.json). Default: the parent of this script.
@@ -52,6 +54,20 @@ $tracked = & git -C $PackageRoot ls-files
 if ($LASTEXITCODE -ne 0) { throw "git ls-files failed in $PackageRoot" }
 $trackedSet = [System.Collections.Generic.HashSet[string]]::new([string[]]$tracked, [StringComparer]::Ordinal)
 
+# The same export-ignore attributes that shape the VPM zip (git archive) decide what the
+# .unitypackage contains, so the two artifacts never drift apart. A directory pattern such as
+# "Tests" only matches the directory itself, hence the "Tests/**" companion in .gitattributes.
+$excluded = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+# Paths go as arguments, in batches: piping them through --stdin would append CRLF on Windows.
+for ($i = 0; $i -lt $tracked.Count; $i += 200) {
+    $batch = $tracked[$i..([Math]::Min($i + 199, $tracked.Count - 1))]
+    $attrs = & git -C $PackageRoot check-attr export-ignore -- @batch
+    if ($LASTEXITCODE -ne 0) { throw "git check-attr failed in $PackageRoot" }
+    foreach ($line in $attrs) {
+        if ($line -match '^(.*): export-ignore: set$') { $excluded.Add($Matches[1]) | Out-Null }
+    }
+}
+
 $staging = Join-Path ([IO.Path]::GetTempPath()) ("unitypackage-" + [Guid]::NewGuid().ToString("N"))
 New-Item -ItemType Directory -Force $staging | Out-Null
 $entries = [System.Collections.Generic.List[string]]::new()
@@ -60,6 +76,7 @@ $utf8 = [Text.UTF8Encoding]::new($false)
 try {
     foreach ($metaRelative in ($tracked | Where-Object { $_ -like "*.meta" } | Sort-Object)) {
         $assetRelative = $metaRelative.Substring(0, $metaRelative.Length - 5)
+        if ($excluded.Contains($metaRelative) -or $excluded.Contains($assetRelative)) { continue }
         # Unity ignores folders ending in ~ and hidden files; their metas are never tracked, but be safe.
         if ($assetRelative -match '(^|/)[^/]*~(/|$)' -or $assetRelative -match '(^|/)\.[^/]*$') { continue }
 

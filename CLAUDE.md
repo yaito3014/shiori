@@ -104,8 +104,13 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
   あれば `../vpm-listing` に `repository_dispatch` を送る。VCC / ALCOM にはそのリスティングから届く。
 - コミットごとに `.unitypackage` をワークスペース直下の `dist/` に出す。`git` の post-commit フックが
   `Tools~/Export-UnityPackage.ps1` を呼ぶ（`.git/hooks` は追跡されないので、クローン直後は
-  `pwsh Tools~/Install-Hooks.ps1` で入れる）。中身は `git ls-files` の `.meta` 付きファイルだけで、
+  `pwsh Tools~/Install-Hooks.ps1` で入れる）。中身は `git ls-files` の `.meta` 付きファイルのうち
+  `.gitattributes` で `export-ignore` になっていないもの（= VPM zip と同じ: `Editor/`、`package.json`、`LICENSE`）で、
   pathname は `Packages/<name>/...`。Unity を起動しないので数秒で終わる。
+- 配布物に入れないもの（`Tests/`、`CLAUDE.md`、`README.md`、`CHANGELOG.md`、`docs~/`、`Tools~/`、`.github/`）は
+  `.gitattributes` の `export-ignore` が唯一の定義。ファイルを足すときは `.meta` も一緒に書く。
+  VCC は `Packages/<id>/` に展開する（= 埋め込みパッケージ）ので、`Tests/` を入れると利用者のプロジェクトで
+  テストアセンブリがコンパイルされ Test Runner に出てしまう。
 
 ## Git バックエンドの方針
 

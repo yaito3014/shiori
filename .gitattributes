@@ -18,9 +18,20 @@
 *.jpg binary
 *.dll binary
 
-# Not part of the VPM zip built by git archive (Release workflow).
+# Not part of the distributed package: the VPM zip (git archive) and the .unitypackage
+# (Tools~/Export-UnityPackage.ps1 asks git check-attr) both honour these. Users get Editor/,
+# package.json and LICENSE; docs live on GitHub (documentationUrl / changelogUrl).
 Tools~ export-ignore
 .github export-ignore
 .gitattributes export-ignore
 .gitignore export-ignore
 docs~ export-ignore
+Tests export-ignore
+Tests/** export-ignore
+Tests.meta export-ignore
+CLAUDE.md export-ignore
+CLAUDE.md.meta export-ignore
+README.md export-ignore
+README.md.meta export-ignore
+CHANGELOG.md export-ignore
+CHANGELOG.md.meta export-ignore
