@@ -5,6 +5,8 @@
   "description": "A Git client inside the Unity Editor, with a simple mode for non-programmers and a detailed mode for everyone else.",
   "unity": "2022.3",
   "license": "MIT",
+  "documentationUrl": "https://github.com/yaito3014/shiori#readme",
+  "changelogUrl": "https://github.com/yaito3014/shiori/blob/main/CHANGELOG.md",
   "author": {
     "name": "yaito3014",
     "url": "https://github.com/yaito3014"

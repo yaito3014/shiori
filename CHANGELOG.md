@@ -1,32 +1,37 @@
-# Changelog
+# 更新履歴 / Changelog
 
-All notable changes to this package are documented here.
-The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
+Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
-## [Unreleased]
+## [0.1.0] - 2026-10-09
 
-### Added
+### 日本語
 
-- Extension API for add-on packages (`ShioriExtension` in `Shiori.Core`): wizard steps rendered by
-  the core from UI-free `SetupStepView`s, save / restore hooks, a status chip in the window header,
-  a memo placeholder, restore-dialog warnings, a per-package section in `ProjectSettings/Shiori.json`,
-  and managed blocks with ids so several packages can share `.gitignore` / `.gitattributes`.
-  Extensions are discovered with `TypeCache`; the core works unchanged without any.
-- Project Settings > Shiori lists extension steps so they can be run again after setup; a step that
-  turns pending after setup is also shown at the top of simple mode with its button.
-- Setup wizard: git detection with guidance, Force Text / Visible Meta Files,
-  managed `.gitignore` / `.gitattributes` blocks, first snapshot with identity entry.
-- Simple mode: Enter in the memo field saves (ignored during an IME conversion and while 保存 is
-  disabled); the memo is capped at 60 characters so every subject Shiori writes, including
-  `Restore: ` ones, stays under GitHub's 72-character cut. A counter appears from 50 characters,
-  turns red at the cap, and a rejected keystroke beeps.
-- Simple mode (かんたん): 保存 with memo and generated message, pending-change list,
-  `.meta` consistency warnings, 履歴 with relative time and per-snapshot file list,
-  戻す with save-first / stash-first confirmation and a linear `Restore:` commit.
-- Detail mode (詳細), read-only: working-tree change list and coloured unified diff.
-- Editor-state lock (compiling, updating, play mode, git running) with a reason banner.
-- Settings pages under Preferences and Project Settings (git path, mode, setup flag).
-- `Shiori.Core`: git runner, locator, repository wrapper with porcelain parsers,
-  ManagedBlockWriter, MetaChecker, SettingsStore, RestoreRunner, DiffParser
-  (all Unity-independent).
-- Package skeleton, dev-project scripts (`Tools~/`) and CI on 2022.3 / Unity 6.
+- **はじめの設定**: git の確認、プロジェクト設定、履歴に含めないもの、最初の保存の 4 手順を上から順に進めます。
+  `.gitignore` / `.gitattributes` には Shiori のブロックを追記するだけで、手で書いた行は残します。
+- **かんたんモード**: メモを書いて「保存」（または Enter）で今の状態を履歴に残します。メモは 60 文字まで。
+  「履歴」で保存した時点が新しい順に並び、選ぶと変わったファイルが見えます。
+  「この時点に戻す」でプロジェクト全体をその時点に戻せます。未保存の変更は「保存してから戻す」か、
+  捨てずに別に取っておきます。
+- **詳細モード**（閲覧のみ）: 変更ファイルの一覧と、選んだファイルの差分。
+- **安全のために**: コンパイル中・再生中・処理中はボタンが止まり、上部に理由が出ます。
+  `.meta` ファイルの抜けや余りを保存前に知らせます。
+- **設定**: `Preferences > Shiori`（git の場所、使うモード）と `Project Settings > Shiori`（はじめの設定の状態）。
+- **拡張パッケージ**: VRChat 向けなど、環境ごとの機能を別パッケージとして足せる仕組み
+  （はじめの設定の追加手順、右上の状態表示、メモ欄の例文、戻す前の注意）。
+
+### English
+
+- **Setup wizard**: four steps, top to bottom: find git, project settings, what to keep out of the
+  history, first save. Shiori appends its own blocks to `.gitignore` / `.gitattributes` and leaves
+  hand-written lines alone.
+- **Simple mode**: write a memo and press 保存 (or Enter) to record the project as it is now; memos
+  are up to 60 characters. 履歴 lists saved points newest first and shows which files changed.
+  この時点に戻す returns the whole project to that point; unsaved changes are either saved first or
+  set aside, never thrown away.
+- **Detail mode** (read-only): list of changed files and the diff of the selected one.
+- **Safety**: buttons are disabled while compiling, in play mode or while a task runs, with the reason
+  shown at the top. Missing or orphaned `.meta` files are reported before saving.
+- **Settings**: `Preferences > Shiori` (git path, modes) and `Project Settings > Shiori` (setup state).
+- **Extension packages**: environment-specific additions such as VRChat ship as separate packages
+  that add wizard steps, a status chip, a memo placeholder and restore warnings.

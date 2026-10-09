@@ -10,10 +10,18 @@ Unity Editor の中で動く Git クライアントです。Git を知らない�
 
 ## インストール
 
-Package Manager の "Add package from git URL" で次を指定します。
+### VCC / ALCOM（VRChat のプロジェクト）
+
+[yaito3014.github.io/vpm-listing](https://yaito3014.github.io/vpm-listing/) の「VCC / ALCOM に追加」を押すと、
+リポジトリとして登録されます。あとはプロジェクトの「Manage Project」から Shiori を追加してください。
+VRChat 向けの追加機能は同じ一覧にある [Shiori for VRChat](https://github.com/yaito3014/shiori-vrchat) を一緒に入れます。
+
+### Package Manager（それ以外の Unity プロジェクト）
+
+"Add package from git URL" で次を指定します。
 
 ```
-https://github.com/yaito3014/shiori.git
+https://github.com/yaito3014/shiori.git#v0.1.0
 ```
 
 ## 使い方
