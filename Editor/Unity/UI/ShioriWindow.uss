@@ -529,3 +529,14 @@
 .shiori-ext-step > .shiori-step-controls-row {
     margin-top: 4px;
 }
+
+.shiori-memo-counter {
+    -unity-text-align: middle-right;
+    font-size: 10px;
+    margin: 0 2px 2px 0;
+}
+
+.shiori-memo-counter--full {
+    color: rgb(214, 78, 78);
+    opacity: 1;
+}

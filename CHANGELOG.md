@@ -16,6 +16,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   turns pending after setup is also shown at the top of simple mode with its button.
 - Setup wizard: git detection with guidance, Force Text / Visible Meta Files,
   managed `.gitignore` / `.gitattributes` blocks, first snapshot with identity entry.
+- Simple mode: Enter in the memo field saves (ignored during an IME conversion and while 保存 is
+  disabled); the memo is capped at 60 characters so every subject Shiori writes, including
+  `Restore: ` ones, stays under GitHub's 72-character cut. A counter appears from 50 characters,
+  turns red at the cap, and a rejected keystroke beeps.
 - Simple mode (かんたん): 保存 with memo and generated message, pending-change list,
   `.meta` consistency warnings, 履歴 with relative time and per-snapshot file list,
   戻す with save-first / stash-first confirmation and a linear `Restore:` commit.

@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
+using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Shiori.Editor
@@ -12,7 +13,18 @@ namespace Shiori.Editor
     internal sealed class SimpleModeView : VisualElement, IShioriView
     {
         public const int PageSize = 200;
+
+        /// <summary>
+        /// Memo cap. Git has no limit, but GitHub cuts subjects at 72 characters and 戻す prefixes
+        /// "Restore: " (9) to the memo it restores to, so 60 keeps every subject Shiori writes intact.
+        /// </summary>
+        public const int MemoMaxLength = 60;
+
+        /// <summary>The counter appears this many characters before the cap, so the limit is never a surprise.</summary>
+        public const int MemoCounterFrom = MemoMaxLength - 10;
+
         private const string HiddenClass = "shiori-hidden";
+        private const string CounterFullClass = "shiori-memo-counter--full";
 
         private readonly ShioriSession _session;
         private readonly IGitRepository _repo;
@@ -22,6 +34,7 @@ namespace Shiori.Editor
         private readonly VisualElement _extensionNotices;
         private readonly TextField _message;
         private readonly Label _placeholder;
+        private readonly Label _memoCounter;
         private readonly Button _saveButton;
         private readonly Label _saveStatus;
         private readonly ListView _saveChanges;
@@ -56,8 +69,12 @@ namespace Shiori.Editor
             get => _message.value;
             set
             {
-                _message.SetValueWithoutNotify(value ?? string.Empty);
+                // maxLength only guards typing; a draft restored after a domain reload is cut here.
+                var text = value ?? string.Empty;
+                if (text.Length > MemoMaxLength) text = text.Substring(0, MemoMaxLength);
+                _message.SetValueWithoutNotify(text);
                 UpdatePlaceholder();
+                UpdateMemoCounter();
             }
         }
 
@@ -75,11 +92,17 @@ namespace Shiori.Editor
             this.Q<Label>("save-title").text = L10n.Tr("simple.save.title");
             _message = this.Q<TextField>("save-message");
             _message.label = L10n.Tr("simple.save.message.label");
+            _message.maxLength = MemoMaxLength;
+            _memoCounter = this.Q<Label>("memo-counter");
             _message.RegisterValueChangedCallback(e =>
             {
                 DraftChanged?.Invoke(e.newValue);
                 UpdatePlaceholder();
+                UpdateMemoCounter();
             });
+            // Enter in the memo saves, like a chat box. Registered on the field so it also catches the
+            // key while the inner input has focus; TrickleDown runs before the text editor sees it.
+            _message.RegisterCallback<KeyDownEvent>(OnMemoKeyDown, TrickleDown.TrickleDown);
             // UI Toolkit in 2022.3 has no placeholder; a label laid over the empty input does the job.
             _placeholder = new Label { name = "save-placeholder", pickingMode = PickingMode.Ignore };
             _placeholder.AddToClassList("shiori-placeholder");
@@ -88,8 +111,10 @@ namespace Shiori.Editor
             _message.RegisterCallback<FocusInEvent>(_ => UpdatePlaceholder(focused: true));
             _message.RegisterCallback<FocusOutEvent>(_ => UpdatePlaceholder(focused: false));
             UpdatePlaceholder();
+            UpdateMemoCounter();
             _saveButton = this.Q<Button>("save-button");
             _saveButton.text = L10n.Tr("simple.save.button");
+            _saveButton.tooltip = L10n.Tr("simple.save.tooltip");
             _saveButton.clicked += Save;
             _saveStatus = this.Q<Label>("save-status");
             _saveChanges = this.Q<ListView>("save-changes");
@@ -237,6 +262,70 @@ namespace Shiori.Editor
         }
 
         // ---- 保存 ----
+
+        private void OnMemoKeyDown(KeyDownEvent e)
+        {
+            if (ShouldSaveOnKey(e.keyCode, IsImeComposing(), _saveButton.enabledSelf && _saveButton.enabledInHierarchy))
+            {
+                e.StopPropagation();
+#if !UNITY_6000_0_OR_NEWER
+                e.PreventDefault();
+#endif
+                Save();
+                return;
+            }
+
+            // maxLength drops the character silently; a beep says "full" the way the OS does.
+            var hasSelection = _message.cursorIndex != _message.selectIndex;
+            if (IsRejectedByCap(e.character, _message.value.Length, hasSelection)) EditorApplication.Beep();
+        }
+
+        /// <summary>
+        /// A printable character typed into a full memo with nothing selected is the keystroke maxLength
+        /// will reject. Control keys, and typing over a selection, still work and stay silent.
+        /// </summary>
+        internal static bool IsRejectedByCap(char character, int length, bool hasSelection)
+        {
+            if (length < MemoMaxLength || hasSelection) return false;
+            return character >= ' ' && !char.IsControl(character);
+        }
+
+        /// <summary>"52/60" from ten characters before the cap; red at the cap. Hidden for short memos.</summary>
+        private void UpdateMemoCounter()
+        {
+            var length = _message.value.Length;
+            var show = length >= MemoCounterFrom;
+            _memoCounter.text = show ? length + "/" + MemoMaxLength : string.Empty;
+            _memoCounter.EnableInClassList(HiddenClass, !show);
+            _memoCounter.EnableInClassList(CounterFullClass, length >= MemoMaxLength);
+        }
+
+        /// <summary>
+        /// Enter saves only when nothing else wants it: the IME is not mid-conversion (Japanese input
+        /// confirms a conversion with the same key) and the 保存 button itself is enabled.
+        /// </summary>
+        internal static bool ShouldSaveOnKey(KeyCode key, bool imeComposing, bool saveEnabled)
+        {
+            if (key != KeyCode.Return && key != KeyCode.KeypadEnter) return false;
+            if (imeComposing) return false;
+            return saveEnabled;
+        }
+
+        /// <summary>
+        /// The only public view of the IME state. Reading <see cref="Input"/> throws in projects that
+        /// switched to the Input System package alone; then the guard is simply off.
+        /// </summary>
+        private static bool IsImeComposing()
+        {
+            try
+            {
+                return !string.IsNullOrEmpty(Input.compositionString);
+            }
+            catch (InvalidOperationException)
+            {
+                return false;
+            }
+        }
 
         private async void Save()
         {

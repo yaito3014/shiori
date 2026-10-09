@@ -147,6 +147,19 @@ namespace Shiori.Editor.Tests
             Assert.That(placeholder.ClassListContains("shiori-hidden"), Is.False, "empty memo shows the placeholder");
             view.DraftMessage = "typed";
             Assert.That(placeholder.ClassListContains("shiori-hidden"), Is.True, "a memo hides the placeholder");
+
+            var memo = view.Q<TextField>("save-message");
+            var counter = view.Q<Label>("memo-counter");
+            Assert.That(memo.maxLength, Is.EqualTo(SimpleModeView.MemoMaxLength));
+            Assert.That(counter.ClassListContains("shiori-hidden"), Is.True, "short memos show no counter");
+            view.DraftMessage = new string('x', SimpleModeView.MemoCounterFrom);
+            Assert.That(counter.text, Is.EqualTo(SimpleModeView.MemoCounterFrom + "/" + SimpleModeView.MemoMaxLength));
+            Assert.That(counter.ClassListContains("shiori-hidden"), Is.False);
+            Assert.That(counter.ClassListContains("shiori-memo-counter--full"), Is.False);
+            view.DraftMessage = new string('x', 100);
+            Assert.That(view.DraftMessage.Length, Is.EqualTo(SimpleModeView.MemoMaxLength), "a restored draft is cut to the cap");
+            Assert.That(counter.ClassListContains("shiori-memo-counter--full"), Is.True);
+            Assert.That(view.Q<Button>("save-button").tooltip, Is.EqualTo(L10n.Tr("simple.save.tooltip")));
             view.DraftMessage = string.Empty;
 
             // The fake step is pending (its block is not in .gitignore), so it shows up as a notice with its button.

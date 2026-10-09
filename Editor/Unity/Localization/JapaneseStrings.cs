@@ -69,6 +69,7 @@ namespace Shiori.Editor
             ["simple.save.title"] = "保存",
             ["simple.save.message.label"] = "メモ",
             ["simple.save.button"] = "保存",
+            ["simple.save.tooltip"] = "メモを書いて Enter でも保存できます。",
             ["simple.save.nochanges"] = "変更はありません",
             ["simple.save.changes"] = "{0} 件の変更（追加 {1} / 変更 {2} / 削除 {3}）",
             ["simple.save.progress"] = "Shiori: 保存",
