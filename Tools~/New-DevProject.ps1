@@ -44,9 +44,10 @@ if ($Absolute) {
     $packageRef = "file:" + ($repo -replace "\\", "/")
 } else {
     # Relative to <project>/Packages, which is how Unity resolves file: references.
-    Push-Location (Join-Path $Destination "Packages")
-    try { $packageRef = "file:" + ((Resolve-Path -Relative $repo) -replace "\\", "/") }
-    finally { Pop-Location }
+    # Computed with .NET rather than Resolve-Path -Relative, which is not reliable on Linux.
+    $packagesDir = Join-Path $Destination "Packages"
+    $relative = [System.IO.Path]::GetRelativePath($packagesDir, $repo)
+    $packageRef = "file:" + ($relative -replace "\\", "/")
 }
 
 $manifest = @"
