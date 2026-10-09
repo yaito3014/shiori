@@ -246,21 +246,7 @@ namespace Shiori.Editor
             {
                 using (GitActivity.Begin(L10n.Tr("step4.progress")))
                 {
-                    var ct = CancellationToken.None;
-                    if (!_status.RepositoryReady)
-                    {
-                        await repository.InitAsync(ct);
-                    }
-                    if (name != null)
-                    {
-                        await repository.SetIdentityAsync(name, email, ct);
-                    }
-                    await repository.AddAllAsync(ct);
-                    var worktree = await repository.GetStatusAsync(ct);
-                    if (worktree.HasChanges)
-                    {
-                        await repository.CommitAsync(ShioriSession.InitialCommitMessage, ct);
-                    }
+                    await _session.FirstSaveAsync(name, email, CancellationToken.None);
                 }
                 _status = await _session.EvaluateSetupAsync(CancellationToken.None);
             }

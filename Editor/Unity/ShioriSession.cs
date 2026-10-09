@@ -98,6 +98,36 @@ namespace Shiori.Editor
             return status;
         }
 
+        /// <summary>
+        /// F1 step 4: initialise the repository if needed, set the identity when given, record the
+        /// wizard as completed in ProjectSettings/Shiori.json, then add everything and commit.
+        /// The settings file is written first so the initial snapshot already contains it;
+        /// otherwise it would show up as an uncommitted change right after setup.
+        /// </summary>
+        public async Task FirstSaveAsync(string name, string email, CancellationToken cancellationToken)
+        {
+            var repository = Repository ?? throw new InvalidOperationException("git is not available");
+
+            var probe = await repository.ProbeAsync(cancellationToken);
+            if (probe.State == RepositoryState.RootMismatch) throw new InvalidOperationException("project is inside another repository: " + probe.TopLevel);
+            if (probe.State == RepositoryState.NotARepository) await repository.InitAsync(cancellationToken);
+
+            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(email))
+            {
+                await repository.SetIdentityAsync(name, email, cancellationToken);
+            }
+
+            Project.SetupCompleted = true;
+            SaveProjectSettings();
+
+            await repository.AddAllAsync(cancellationToken);
+            var staged = await repository.GetStatusAsync(cancellationToken);
+            if (staged.HasChanges)
+            {
+                await repository.CommitAsync(InitialCommitMessage, cancellationToken);
+            }
+        }
+
         public bool AreIgnoreFilesWritten()
         {
             return BlockMatches(GitIgnorePath, ShioriBlocks.GitIgnore) && BlockMatches(GitAttributesPath, ShioriBlocks.GitAttributes);
