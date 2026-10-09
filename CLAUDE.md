@@ -48,6 +48,8 @@ shiori-unity/
   Tools~/                   # 開発用スクリプト（配布対象外）
     New-DevProject.ps1      # 検証用 Unity プロジェクトをリポジトリの外に生成する
     Test-DevProject.ps1     # 検証用プロジェクトで EditMode テストを回し、結果を要約する
+    Export-UnityPackage.ps1 # 追跡ファイルから ../dist/<name>-<version>.unitypackage を作る（Unity 不要）
+    Install-Hooks.ps1       # 上を post-commit フックとして入れる（shiori-vrchat にも使う）
   docs/
     adr/                    # 設計判断の記録（後述）
   .github/workflows/
@@ -96,6 +98,10 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
   （末尾 `~` がないと、リポジトリ＝パッケージなので Unity がプロジェクトごと取り込んで壊れる）。
   Secrets `UNITY_LICENSE` / `UNITY_EMAIL` / `UNITY_PASSWORD` が必要。
 - 変更をコミットする前に、インストール済みの全バージョンで `Test-DevProject.ps1` を通す。
+- コミットごとに `.unitypackage` をワークスペース直下の `dist/` に出す。`git` の post-commit フックが
+  `Tools~/Export-UnityPackage.ps1` を呼ぶ（`.git/hooks` は追跡されないので、クローン直後は
+  `pwsh Tools~/Install-Hooks.ps1` で入れる）。中身は `git ls-files` の `.meta` 付きファイルだけで、
+  pathname は `Packages/<name>/...`。Unity を起動しないので数秒で終わる。
 
 ## Git バックエンドの方針
 

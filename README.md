@@ -88,6 +88,10 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 6000.6.0f1
 
 # コンパイルだけ
 pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
+
+# .unitypackage を ../dist/ に出す（コミットごとに post-commit フックからも実行されます）
+pwsh Tools~/Export-UnityPackage.ps1
+pwsh Tools~/Install-Hooks.ps1        # クローン直後に一度
 ```
 
 CI（GitHub Actions）は同じスクリプトでプロジェクトを生成してから GameCI でテストを回します。
