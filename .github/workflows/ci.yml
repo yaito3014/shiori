@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
 
 jobs:
@@ -12,17 +12,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - unity: 2022.3.22f1
-            project: DevProject~/2022.3
-          - unity: 6000.6.0f1
-            project: DevProject~/6000.6
+        unity: [2022.3.22f1, 6000.6.0f1]
+    env:
+      PROJECT: ci-project/${{ matrix.unity }}
     steps:
       - uses: actions/checkout@v4
 
+      - name: Create the dev project
+        shell: pwsh
+        run: ./Tools~/New-DevProject.ps1 -UnityVersion ${{ matrix.unity }} -Destination $env:PROJECT
+
       - uses: actions/cache@v4
         with:
-          path: ${{ matrix.project }}/Library
+          path: ${{ env.PROJECT }}/Library
           key: Library-${{ matrix.unity }}-${{ hashFiles('**/*.asmdef', 'package.json') }}
           restore-keys: |
             Library-${{ matrix.unity }}-
@@ -34,7 +36,7 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
-          projectPath: ${{ matrix.project }}
+          projectPath: ${{ env.PROJECT }}
           unityVersion: ${{ matrix.unity }}
           testMode: EditMode
           artifactsPath: test-results-${{ matrix.unity }}
@@ -43,7 +45,7 @@ jobs:
 
       - name: Check Shiori.Core does not reference UnityEngine / UnityEditor
         run: |
-          dll="${{ matrix.project }}/Library/ScriptAssemblies/Shiori.Core.dll"
+          dll="$PROJECT/Library/ScriptAssemblies/Shiori.Core.dll"
           test -f "$dll" || { echo "missing $dll"; exit 1; }
           if grep -a -q -E 'UnityEngine|UnityEditor' "$dll"; then
             echo "Shiori.Core.dll references Unity assemblies"; exit 1

@@ -18,16 +18,23 @@ https://github.com/yaito3014/shiori.git
 
 ## 開発
 
-リポジトリのルートがパッケージ本体です。検証用の Unity プロジェクトは
-`DevProject~/<Unity バージョン>/` にあり、`file:../../..` でこのパッケージを参照しています。
+リポジトリのルートがパッケージ本体です。検証用の Unity プロジェクトはリポジトリの外に置きます
+（中に置くと、ウィザードがリポジトリの入れ子を検出して止まるため）。
 
 ```
-# コンパイルのみ
-"C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Unity.exe" -batchmode -nographics -quit -projectPath DevProject~/2022.3 -logFile -
+# 検証用プロジェクトを作る（既定: ../shiori-dev/<major.minor>）
+pwsh Tools~/New-DevProject.ps1 -UnityVersion 2022.3.22f1
+pwsh Tools~/New-DevProject.ps1 -UnityVersion 6000.6.0f1
 
-# EditMode テスト
-"C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Unity.exe" -batchmode -nographics -projectPath DevProject~/2022.3 -runTests -testPlatform EditMode -testResults TestResults.xml -logFile -
+# EditMode テストを回して結果を要約する
+pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1
+pwsh Tools~/Test-DevProject.ps1 -UnityVersion 6000.6.0f1
+
+# コンパイルだけ
+pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 ```
+
+CI（GitHub Actions）は同じスクリプトでプロジェクトを生成してから GameCI でテストを回します。
 
 ## ライセンス
 

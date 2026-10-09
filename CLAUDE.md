@@ -45,14 +45,21 @@ shiori-unity/
       Core/                 # Shiori.Core.Tests.asmdef（NUnit、Unity API 不使用）
       Unity/                # Shiori.Editor.Tests.asmdef
   Samples~/
-  DevProject~/              # 検証用 Unity プロジェクト（配布対象外）。インストール済みバージョンごとに 1 つ
-    2022.3/                 # 2022.3.22f1
-    6000.6/                 # 6000.6.0f1
-      Packages/manifest.json  # "com.yaito3014.shiori": "file:../../.."
+  Tools~/                   # 開発用スクリプト（配布対象外）
+    New-DevProject.ps1      # 検証用 Unity プロジェクトをリポジトリの外に生成する
+    Test-DevProject.ps1     # 検証用プロジェクトで EditMode テストを回し、結果を要約する
   docs/
     adr/                    # 設計判断の記録（後述）
   .github/workflows/
+
+../shiori-dev/              # 検証用 Unity プロジェクト（リポジトリの外。インストール済みバージョンごとに 1 つ）
+  2022.3/                   # 2022.3.22f1
+  6000.6/                   # 6000.6.0f1
+    Packages/manifest.json  # "com.yaito3014.shiori": "file:../../../shiori"
 ```
+
+検証用プロジェクトをリポジトリの中に置かない理由: ウィザードがリポジトリの入れ子
+（`rev-parse --show-toplevel` がプロジェクトルートと異なる）を検出して止まるため。
 
 - `Shiori.Core` は **UnityEngine / UnityEditor を参照しない**。git CLI の呼び出し、
   リポジトリ状態のモデル、設定ファイルの読み書き、Unity YAML の解析（将来）は
@@ -68,26 +75,26 @@ Claude Code は Editor の GUI を開けない。できるのはコンパイル�
 「どこを見て何を試してほしいか」を短く書いて渡すこと。
 
 ```
-# Unity のパス（インストール済み: 2022.3.22f1 / 6000.6.0f1）
-UNITY="C:/Program Files/Unity/Hub/Editor/2022.3.22f1/Editor/Unity.exe"
-PROJ="DevProject~/2022.3"
+# 検証用プロジェクトの生成（既定の出力先: ../shiori-dev/<major.minor>）
+pwsh Tools~/New-DevProject.ps1 -UnityVersion 2022.3.22f1
+
+# EditMode テスト（結果の要約と失敗したテストのメッセージを表示する）
+pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1
+pwsh Tools~/Test-DevProject.ps1 -UnityVersion 6000.6.0f1
 
 # コンパイルのみ
-"$UNITY" -batchmode -nographics -quit -projectPath "$PROJ" -logFile -
-
-# EditMode テスト
-"$UNITY" -batchmode -nographics -projectPath "$PROJ" \
-  -runTests -testPlatform EditMode -testResults TestResults.xml -logFile -
-# -testResults の相対パスは projectPath 基準で解決される（カレントディレクトリ基準ではない）
+pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 ```
 
+- インストール済み Unity: 2022.3.22f1 / 6000.6.0f1（`C:/Program Files/Unity/Hub/Editor/<version>/Editor/Unity.exe`）。
+- Unity を直接呼ぶ場合、`-testResults` の相対パスは projectPath 基準で解決される
+  （カレントディレクトリ基準ではない）。
 - `Shiori.Core.Tests` は Unity 非依存なので、将来 `dotnet test` だけで回せる
   構成に移してもよい（M1 では Unity Test Runner で統一する）。
 - CI（GitHub Actions + GameCI）はローカルと同じバージョン（2022.3.22f1 / 6000.6.0f1）で
-  EditMode テストを回す。`DevProject~/2022.3` と `DevProject~/6000.6` を使う。
+  EditMode テストを回す。プロジェクトは `Tools~/New-DevProject.ps1` で `ci-project/` に生成する。
   Secrets `UNITY_LICENSE` / `UNITY_EMAIL` / `UNITY_PASSWORD` が必要。
-- 変更をコミットする前に、インストール済みの全バージョン（`DevProject~/` 配下の各プロジェクト）で
-  コンパイルとテストを通す。
+- 変更をコミットする前に、インストール済みの全バージョンで `Test-DevProject.ps1` を通す。
 
 ## Git バックエンドの方針
 

@@ -1,16 +1,6 @@
-# Unity dev projects (DevProject~/<version>/)
-DevProject~/*/[Ll]ibrary/
-DevProject~/*/[Tt]emp/
-DevProject~/*/[Oo]bj/
-DevProject~/*/[Ll]ogs/
-DevProject~/*/[Uu]ser[Ss]ettings/
-DevProject~/*/[Bb]uild/
-DevProject~/*/Packages/packages-lock.json
-DevProject~/*/*.csproj
-DevProject~/*/*.sln
-DevProject~/*/.vs/
-DevProject~/*/.idea/
-DevProject~/*/TestResults*.xml
+# Dev projects live outside the repository (see Tools~/New-DevProject.ps1).
+# CI generates its own under ci-project/.
+ci-project/
 
 # IDE / OS
 .vs/
