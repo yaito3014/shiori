@@ -10,7 +10,7 @@ using UnityEngine.UIElements;
 namespace Shiori.Editor
 {
     /// <summary>Simple mode: 保存 (F2) and 履歴 (F3). Vocabulary is fixed; no git terms appear here.</summary>
-    internal sealed class SimpleModeView : VisualElement
+    internal sealed class SimpleModeView : VisualElement, IShioriView
     {
         public const int PageSize = 200;
         private const string HiddenClass = "shiori-hidden";

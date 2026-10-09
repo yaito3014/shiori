@@ -95,6 +95,17 @@ namespace Shiori.Editor
             ["restore.stashed"] = "戻す前の変更は別に保管してあります。",
             ["restore.projectsettings"] = "プロジェクト設定も戻しました。反映には Unity の再起動が必要な設定があります。",
 
+            ["mode.label"] = "モード",
+            ["mode.simple"] = "かんたん",
+            ["mode.detail"] = "詳細",
+
+            ["detail.files.title"] = "変更ファイル",
+            ["detail.files.empty"] = "変更はありません",
+            ["detail.refresh"] = "更新",
+            ["detail.diff.select"] = "ファイルを選ぶと差分が表示されます。",
+            ["detail.diff.none"] = "表示できる差分はありません（バイナリ、または内容の変更なし）。",
+            ["detail.diff.truncated"] = "長いため先頭 {0} 行までを表示しています。",
+
             ["time.now"] = "たった今",
             ["time.minutes"] = "{0} 分前",
             ["time.hours"] = "{0} 時間前",

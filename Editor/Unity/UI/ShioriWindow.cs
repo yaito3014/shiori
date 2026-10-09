@@ -14,10 +14,15 @@ namespace Shiori.Editor
     {
         private const string LockBannerHiddenClass = "shiori-lock-banner--hidden";
         private const string ContentLockedClass = "shiori-content--locked";
+        private const string HiddenClass = "shiori-hidden";
+        private const string ModeActiveClass = "shiori-mode-button--active";
 
         private EditorStateGuard _guard;
         private ShioriSession _session;
-        private SimpleModeView _simpleView;
+        private IShioriView _mainView;
+        private VisualElement _modeBar;
+        private Button _modeSimple;
+        private Button _modeDetail;
         private VisualElement _lockBanner;
         private Label _lockMessage;
         private VisualElement _content;
@@ -27,6 +32,7 @@ namespace Shiori.Editor
         // Survive domain reloads (F6).
         [SerializeField] private string _selectedHash;
         [SerializeField] private string _draftMessage;
+        [SerializeField] private string _selectedPath;
 
         [MenuItem("Window/Shiori")]
         public static void Open()
@@ -72,6 +78,14 @@ namespace Shiori.Editor
                 return;
             }
 
+            _modeBar = rootVisualElement.Q<VisualElement>("mode-bar");
+            rootVisualElement.Q<Label>("mode-label").text = L10n.Tr("mode.label");
+            _modeSimple = rootVisualElement.Q<Button>("mode-simple");
+            _modeSimple.text = L10n.Tr("mode.simple");
+            _modeSimple.clicked += () => SwitchMode(UiMode.Simple);
+            _modeDetail = rootVisualElement.Q<Button>("mode-detail");
+            _modeDetail.text = L10n.Tr("mode.detail");
+            _modeDetail.clicked += () => SwitchMode(UiMode.Detail);
             _lockBanner = rootVisualElement.Q<VisualElement>("lock-banner");
             _lockMessage = rootVisualElement.Q<Label>("lock-message");
             _content = rootVisualElement.Q<VisualElement>("content");
@@ -80,28 +94,47 @@ namespace Shiori.Editor
             Refresh();
         }
 
-        /// <summary>Re-evaluates the project and shows either the wizard or the main view.</summary>
         private void OnFocus()
         {
-            _simpleView?.RefreshAll();
+            _mainView?.RefreshAll();
         }
 
         /// <summary>Asset changes arrive in bursts; wait half a second before re-reading the working tree.</summary>
         private void OnProjectChanged()
         {
-            if (_simpleView == null || _scheduledStatusRefresh != null) return;
+            if (_mainView == null || _scheduledStatusRefresh != null) return;
             _scheduledStatusRefresh = rootVisualElement.schedule.Execute(() =>
             {
                 _scheduledStatusRefresh = null;
-                _simpleView?.RefreshStatus();
+                _mainView?.RefreshStatus();
             }).StartingIn(500);
         }
 
+        /// <summary>Switches between かんたん and 詳細, remembering the choice in UserSettings/Shiori.json.</summary>
+        private void SwitchMode(UiMode mode)
+        {
+            if (_session == null || _mainView == null || _session.User.Mode == mode) return;
+            _session.User.Mode = mode;
+            try
+            {
+                _session.SaveUserSettings();
+            }
+            catch (Exception ex)
+            {
+                ShowError(L10n.Tr("error.generic", ex.Message));
+                return;
+            }
+            _content.Clear();
+            ShowMain();
+        }
+
+        /// <summary>Re-evaluates the project and shows either the wizard or the main view.</summary>
         private async void Refresh()
         {
             var generation = ++_refreshGeneration;
             if (_content == null) return;
-            _simpleView = null;
+            _mainView = null;
+            _modeBar.EnableInClassList(HiddenClass, true);
             _content.Clear();
 
             try
@@ -142,19 +175,36 @@ namespace Shiori.Editor
 
         private void ShowMain()
         {
+            var mode = _session.User.Mode;
+            _modeBar.EnableInClassList(HiddenClass, false);
+            _modeSimple.EnableInClassList(ModeActiveClass, mode == UiMode.Simple);
+            _modeDetail.EnableInClassList(ModeActiveClass, mode == UiMode.Detail);
+
+            if (mode == UiMode.Detail)
+            {
+                var detail = new DetailModeView(_session);
+                detail.RestoreSelection(_selectedPath);
+                detail.SelectionChanged += path => _selectedPath = path;
+                _content.Add(detail);
+                _mainView = detail;
+                detail.RefreshAll();
+                return;
+            }
+
             var view = new SimpleModeView(_session);
             view.DraftMessage = _draftMessage;
             view.RestoreSelection(_selectedHash);
             view.SelectionChanged += hash => _selectedHash = hash;
             view.DraftChanged += message => _draftMessage = message;
             _content.Add(view);
-            _simpleView = view;
+            _mainView = view;
             view.RefreshAll();
         }
 
         private void ShowError(string message)
         {
             if (_content == null) return;
+            _mainView = null;
             _content.Clear();
             var label = new Label(message);
             label.AddToClassList("shiori-error");
