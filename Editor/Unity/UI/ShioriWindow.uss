@@ -272,7 +272,17 @@
 .shiori-history-panel {
     flex-grow: 1;
     flex-shrink: 1;
-    min-height: 120px;
+    /* Inside the scroll area this is the height the list keeps when the window is short. */
+    min-height: 200px;
+}
+
+.shiori-simple-scroll {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.shiori-simple-body {
+    flex-direction: column;
 }
 
 .shiori-history-list {

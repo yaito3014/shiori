@@ -163,6 +163,24 @@ namespace Shiori.Editor.Tests
         }
 
         [Test]
+        public void SimpleModeView_PanelsScrollTogether()
+        {
+            var session = new ShioriSession(_root, new ProcessGitRunner(), System.Array.Empty<ShioriExtension>());
+            var task = session.LocateGitAsync(CancellationToken.None);
+            // LocateGitAsync may complete synchronously from the cache; the view only needs the repository object.
+            Assume.That(task.IsCompleted && session.Repository != null, Is.True, "git must already be located in this domain");
+            var view = new SimpleModeView(session);
+            var scroll = view.Q<ScrollView>("simple-scroll");
+            Assert.That(scroll, Is.Not.Null);
+            Assert.That(scroll.mode, Is.EqualTo(ScrollViewMode.Vertical));
+            foreach (var name in new[] { "save-panel", "aside-panel", "history-panel", "detail-panel", "ext-notices" })
+            {
+                Assert.That(scroll.contentContainer.Q(name), Is.Not.Null, name + " is inside the scroll area");
+            }
+            Assert.That(scroll.contentContainer.ClassListContains("shiori-simple-body"), Is.True);
+        }
+
+        [Test]
         public void SendMessages_ExplainEachOutcome()
         {
             Assert.That(RemoteText.Describe(new SendResult(SendOutcome.Sent, 3, false)), Is.EqualTo(L10n.Tr("send.done", 3)));

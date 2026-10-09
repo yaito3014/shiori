@@ -93,6 +93,13 @@ namespace Shiori.Editor
             UiAssets.Tree("SimpleModeView.uxml").CloneTree(this);
             style.flexGrow = 1;
 
+            // The panels scroll as a whole when the window is short. While there is room, the content is
+            // stretched to the visible height so the history list keeps filling the window as before.
+            var scroll = this.Q<ScrollView>("simple-scroll");
+            scroll.contentContainer.AddToClassList("shiori-simple-body");
+            scroll.contentViewport.RegisterCallback<GeometryChangedEvent>(e =>
+                scroll.contentContainer.style.minHeight = e.newRect.height);
+
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
             _extensionNotices = this.Q<VisualElement>("ext-notices");
