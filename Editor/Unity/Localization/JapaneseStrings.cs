@@ -59,6 +59,43 @@ namespace Shiori.Editor
             ["step4.identity.required"] = "名前とメールアドレスの両方を入力してください。",
             ["step4.apply"] = "最初の保存をする",
             ["step4.progress"] = "Shiori: 最初の保存",
+
+            ["simple.save.title"] = "保存",
+            ["simple.save.message.label"] = "メモ",
+            ["simple.save.button"] = "保存",
+            ["simple.save.nochanges"] = "変更はありません",
+            ["simple.save.changes"] = "変更 {0} 件（追加 {1}、変更 {2}、削除 {3}）",
+            ["simple.save.progress"] = "Shiori: 保存",
+            ["simple.meta.title"] = ".meta ファイルの不整合が {0} 件あります（保存はできます）",
+            ["simple.meta.missing"] = ".meta がありません: {0}",
+            ["simple.meta.orphan"] = "対応するファイルがありません: {0}",
+
+            ["simple.history.title"] = "履歴",
+            ["simple.history.refresh"] = "更新",
+            ["simple.history.empty"] = "まだ履歴がありません。",
+            ["simple.history.more"] = "さらに読み込む",
+            ["simple.history.current"] = "現在",
+            ["simple.history.files"] = "{0} 件",
+            ["simple.detail.empty"] = "履歴を選ぶと、変更されたファイルが表示されます。",
+            ["simple.detail.nofiles"] = "変更されたファイルはありません。",
+            ["simple.detail.by"] = "{0:yyyy/MM/dd HH:mm} ・ {1}",
+            ["row.metaonly"] = "{0}（.meta のみ）",
+
+            ["time.now"] = "たった今",
+            ["time.minutes"] = "{0} 分前",
+            ["time.hours"] = "{0} 時間前",
+            ["time.days"] = "{0} 日前",
+            ["time.date"] = "{0:yyyy/MM/dd}",
+
+            ["kind.added"] = "追加",
+            ["kind.modified"] = "変更",
+            ["kind.deleted"] = "削除",
+            ["kind.renamed"] = "名前変更",
+            ["kind.copied"] = "コピー",
+            ["kind.typechanged"] = "種類変更",
+            ["kind.unmerged"] = "競合",
+            ["kind.ignored"] = "無視",
+            ["kind.unknown"] = "不明",
         };
     }
 }

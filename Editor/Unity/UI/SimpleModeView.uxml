@@ -1,0 +1,34 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <ui:VisualElement class="shiori-simple">
+        <ui:Label name="view-error" class="shiori-error shiori-hidden" />
+
+        <ui:VisualElement name="save-panel" class="shiori-panel">
+            <ui:Label name="save-title" class="shiori-panel-title" />
+            <ui:TextField name="save-message" class="shiori-save-message" />
+            <ui:VisualElement class="shiori-row">
+                <ui:Button name="save-button" class="shiori-primary-button" />
+                <ui:Label name="save-status" class="shiori-save-status" />
+            </ui:VisualElement>
+            <ui:Foldout name="meta-warnings" class="shiori-meta-warnings shiori-hidden" value="false">
+                <ui:ScrollView name="meta-list" class="shiori-meta-list" />
+            </ui:Foldout>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="history-panel" class="shiori-panel shiori-history-panel">
+            <ui:VisualElement class="shiori-row shiori-panel-header">
+                <ui:Label name="history-title" class="shiori-panel-title" />
+                <ui:Button name="history-refresh" class="shiori-small-button" />
+            </ui:VisualElement>
+            <ui:Label name="history-empty" class="shiori-muted shiori-hidden" />
+            <ui:ListView name="history-list" class="shiori-history-list" />
+            <ui:Button name="history-more" class="shiori-small-button shiori-hidden" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="detail-panel" class="shiori-panel shiori-detail-panel">
+            <ui:Label name="detail-message" class="shiori-detail-message" />
+            <ui:Label name="detail-meta" class="shiori-muted" />
+            <ui:Label name="detail-empty" class="shiori-muted" />
+            <ui:ListView name="detail-files" class="shiori-detail-files" />
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

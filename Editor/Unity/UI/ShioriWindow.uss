@@ -41,10 +41,161 @@
     margin: 4px 0;
 }
 
+.shiori-muted {
+    white-space: normal;
+    opacity: 0.7;
+}
+
+.shiori-row {
+    flex-direction: row;
+    align-items: center;
+}
+
 .shiori-primary-button {
     align-self: flex-start;
     min-width: 140px;
     margin: 4px 0;
+}
+
+.shiori-small-button {
+    align-self: flex-start;
+    margin: 2px 0;
+}
+
+/* --- Panels (simple mode) --- */
+
+.shiori-simple {
+    flex-grow: 1;
+}
+
+.shiori-panel {
+    margin: 0 0 8px 0;
+    padding: 6px 8px;
+    border-radius: 4px;
+    border-width: 1px;
+    border-color: rgba(128, 128, 128, 0.35);
+    background-color: rgba(128, 128, 128, 0.06);
+}
+
+.shiori-panel-title {
+    font-size: 13px;
+    -unity-font-style: bold;
+    margin-bottom: 4px;
+    flex-grow: 1;
+}
+
+.shiori-panel-header {
+    justify-content: space-between;
+}
+
+.shiori-save-message {
+    margin: 2px 0;
+}
+
+.shiori-save-status {
+    margin-left: 10px;
+    white-space: normal;
+    flex-shrink: 1;
+}
+
+.shiori-meta-warnings {
+    margin-top: 4px;
+}
+
+.shiori-meta-list {
+    max-height: 120px;
+}
+
+.shiori-meta-list Label {
+    white-space: normal;
+    font-size: 11px;
+}
+
+.shiori-history-panel {
+    flex-grow: 1;
+    min-height: 120px;
+}
+
+.shiori-history-list {
+    flex-grow: 1;
+    min-height: 80px;
+}
+
+.shiori-history-item {
+    flex-direction: row;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.shiori-history-time {
+    width: 86px;
+    flex-shrink: 0;
+    opacity: 0.75;
+}
+
+.shiori-history-message {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shiori-history-count {
+    width: 48px;
+    flex-shrink: 0;
+    -unity-text-align: middle-right;
+    opacity: 0.75;
+}
+
+.shiori-history-current {
+    margin-left: 6px;
+    padding: 0 6px;
+    border-radius: 8px;
+    background-color: rgba(76, 175, 80, 0.75);
+    color: white;
+    font-size: 10px;
+}
+
+.shiori-detail-panel {
+    height: 190px;
+    flex-shrink: 0;
+}
+
+.shiori-detail-message {
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+.shiori-detail-files {
+    flex-grow: 1;
+    margin-top: 4px;
+}
+
+.shiori-file-item {
+    flex-direction: row;
+    align-items: center;
+    padding: 0 6px;
+}
+
+.shiori-file-kind {
+    width: 62px;
+    flex-shrink: 0;
+    opacity: 0.8;
+}
+
+.shiori-file-path {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shiori-file-meta {
+    margin-left: 6px;
+    font-size: 10px;
+    opacity: 0.6;
 }
 
 /* --- Setup wizard --- */

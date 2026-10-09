@@ -17,10 +17,16 @@ namespace Shiori.Editor
 
         private EditorStateGuard _guard;
         private ShioriSession _session;
+        private SimpleModeView _simpleView;
         private VisualElement _lockBanner;
         private Label _lockMessage;
         private VisualElement _content;
         private int _refreshGeneration;
+        private IVisualElementScheduledItem _scheduledStatusRefresh;
+
+        // Survive domain reloads (F6).
+        [SerializeField] private string _selectedHash;
+        [SerializeField] private string _draftMessage;
 
         [MenuItem("Window/Shiori")]
         public static void Open()
@@ -37,11 +43,13 @@ namespace Shiori.Editor
             _guard = new EditorStateGuard();
             _guard.Changed += OnLockChanged;
             GitActivity.Changed += OnGitActivityChanged;
+            EditorApplication.projectChanged += OnProjectChanged;
         }
 
         private void OnDisable()
         {
             _refreshGeneration++;
+            EditorApplication.projectChanged -= OnProjectChanged;
             GitActivity.Changed -= OnGitActivityChanged;
             if (_guard != null)
             {
@@ -73,10 +81,27 @@ namespace Shiori.Editor
         }
 
         /// <summary>Re-evaluates the project and shows either the wizard or the main view.</summary>
+        private void OnFocus()
+        {
+            _simpleView?.RefreshAll();
+        }
+
+        /// <summary>Asset changes arrive in bursts; wait half a second before re-reading the working tree.</summary>
+        private void OnProjectChanged()
+        {
+            if (_simpleView == null || _scheduledStatusRefresh != null) return;
+            _scheduledStatusRefresh = rootVisualElement.schedule.Execute(() =>
+            {
+                _scheduledStatusRefresh = null;
+                _simpleView?.RefreshStatus();
+            }).StartingIn(500);
+        }
+
         private async void Refresh()
         {
             var generation = ++_refreshGeneration;
             if (_content == null) return;
+            _simpleView = null;
             _content.Clear();
 
             try
@@ -117,7 +142,14 @@ namespace Shiori.Editor
 
         private void ShowMain()
         {
-            // Filled in by the simple-mode view (F2-F4).
+            var view = new SimpleModeView(_session);
+            view.DraftMessage = _draftMessage;
+            view.RestoreSelection(_selectedHash);
+            view.SelectionChanged += hash => _selectedHash = hash;
+            view.DraftChanged += message => _draftMessage = message;
+            _content.Add(view);
+            _simpleView = view;
+            view.RefreshAll();
         }
 
         private void ShowError(string message)
