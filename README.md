@@ -18,6 +18,17 @@ VRChat 向けの追加機能は同じ一覧にある [Shiori for VRChat](https:/
 
 ### Package Manager（それ以外の Unity プロジェクト）
 
+`Project Settings > Package Manager` の Scoped Registries に次を追加すると、Package Manager の「My Registries」から
+インストールと更新ができます。Unity 6.3 以降では署名済み（発行元 KakeyamaY）と表示されます。
+
+| 項目 | 値 |
+| --- | --- |
+| Name | `yaito3014` |
+| URL | `https://yaito3014.github.io/vpm-listing` |
+| Scope(s) | `com.yaito3014` |
+
+登録したくない場合は tarball から入れられます。
+
 1. [最新のリリース](https://github.com/yaito3014/shiori/releases/latest)から `com.yaito3014.shiori-<version>.tgz` をダウンロードします。
 2. Package Manager の「+」から "Install package from tarball..." を選び、ダウンロードしたファイルを指定します。
 
