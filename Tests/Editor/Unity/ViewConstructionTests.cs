@@ -135,6 +135,52 @@ namespace Shiori.Editor.Tests
             Assert.That(rows[0].Q<Button>().text, Is.EqualTo(L10n.Tr("aside.button")));
         }
 
+        [UnityTest]
+        public IEnumerator SimpleModeView_SendRowFollowsTheRemote()
+        {
+            yield return PrepareRepository();
+            var view = new SimpleModeView(_session);
+            var row = view.Q<VisualElement>("send-row");
+            view.RefreshAll();
+            var started = System.DateTime.UtcNow;
+            while (row.ClassListContains("shiori-hidden"))
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the send row was not shown");
+                yield return null;
+            }
+            Assert.That(view.Q<Button>("send-button").text, Is.EqualTo(L10n.Tr("send.setup")));
+            Assert.That(view.Q<Label>("send-status").text, Is.EqualTo(L10n.Tr("send.none")));
+
+            yield return Await(_session.Repository.SetRemoteUrlAsync("https://example.invalid/shiori.git", CancellationToken.None));
+            view.RefreshAll();
+            started = System.DateTime.UtcNow;
+            while (view.Q<Button>("send-button").text != L10n.Tr("send.button"))
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the send button did not switch");
+                yield return null;
+            }
+            Assert.That(view.Q<Label>("send-status").text, Is.EqualTo(L10n.Tr("send.never", 1)), "counted locally, no network needed");
+        }
+
+        [Test]
+        public void SendMessages_ExplainEachOutcome()
+        {
+            Assert.That(RemoteText.Describe(new SendResult(SendOutcome.Sent, 3, false)), Is.EqualTo(L10n.Tr("send.done", 3)));
+            Assert.That(RemoteText.Describe(new SendResult(SendOutcome.Sent, 1, true)), Is.EqualTo(L10n.Tr("send.done", 1) + "\n" + L10n.Tr("send.unsaved")));
+            Assert.That(RemoteText.Describe(new SendResult(SendOutcome.NothingToSend, 0, false)), Is.EqualTo(L10n.Tr("send.nothing")));
+            Assert.That(RemoteText.Status(new SendStatus("u", 0, false)), Is.EqualTo(L10n.Tr("send.uptodate")));
+            Assert.That(RemoteText.Status(new SendStatus("u", 2, false)), Is.EqualTo(L10n.Tr("send.unsent", 2)));
+            Assert.That(RemoteText.Status(null), Is.EqualTo(L10n.Tr("send.none")));
+            var tooLarge = new RemoteOperationException(RemoteErrorKind.TooLarge, "push", 1, "remote: error: GH001: Large files detected.");
+            Assert.That(RemoteText.Describe(tooLarge), Does.StartWith(L10n.Tr("remote.error.TooLarge")).And.Contains("GH001"));
+            var auth = new RemoteOperationException(RemoteErrorKind.Authentication, "push", 128, "fatal: Authentication failed");
+            Assert.That(RemoteText.Describe(auth), Is.EqualTo(L10n.Tr("remote.error.Authentication")), "no raw git text for known causes");
+            foreach (RemoteErrorKind kind in System.Enum.GetValues(typeof(RemoteErrorKind)))
+            {
+                Assert.That(L10n.Tr("remote.error." + kind), Is.Not.EqualTo("remote.error." + kind), "a Japanese text exists for " + kind);
+            }
+        }
+
         [Test]
         public void TakeOutMessages_ExplainEachOutcome()
         {
@@ -152,7 +198,11 @@ namespace Shiori.Editor.Tests
             var status = session.EvaluateSetupAsync(CancellationToken.None);
             yield return Await(status);
             var view = new SetupWizardView(session, status.Result);
-            Assert.That(view.Q<VisualElement>("steps").childCount, Is.EqualTo(4));
+            var steps = view.Q<VisualElement>("steps");
+            Assert.That(steps.childCount, Is.EqualTo(5), "four steps plus the optional 送信先");
+            Assert.That(steps[4].Q<Label>("step-title").text, Is.EqualTo(L10n.Tr("step.remote.title")));
+            Assert.That(steps[4].Q<Label>("step-state").text, Is.EqualTo(L10n.Tr("step.remote.optional")));
+            Assert.That(status.Result.StepCount, Is.EqualTo(4), "the optional step is not counted");
         }
 
         [UnityTest]
@@ -167,7 +217,7 @@ namespace Shiori.Editor.Tests
 
             var view = new SetupWizardView(session, status.Result);
             var steps = view.Q<VisualElement>("steps");
-            Assert.That(steps.childCount, Is.EqualTo(5));
+            Assert.That(steps.childCount, Is.EqualTo(6));
             Assert.That(steps[3].Q<Label>("step-title").text, Is.EqualTo(FakeExtension.StepTitle));
             Assert.That(steps[3].Q<Label>("step-message").text, Is.EqualTo(FakeExtension.TodoMessage));
             Assert.That(steps[4].Q<Label>("step-title").text, Is.EqualTo(L10n.Tr("step4.title")));
