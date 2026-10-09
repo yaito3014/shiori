@@ -4,7 +4,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using UnityEditor;
-using UnityEditor.SceneManagement;
 using UnityEngine.UIElements;
 
 namespace Shiori.Editor
@@ -220,7 +219,9 @@ namespace Shiori.Editor
 
         private async void Save()
         {
-            if (_busy || _status == null || !_status.HasChanges) return;
+            if (_busy || _status == null) return;
+            // Inspector edits are not on disk yet; git must see what the user sees.
+            if (!UnitySaver.SaveEverythingOrCancel()) return;
             _busy = true;
             SetNotice(null);
             _saveButton.SetEnabled(false);
@@ -236,6 +237,10 @@ namespace Shiori.Editor
                         var message = SnapshotMessage.Resolve(_message.value, staged.Stats);
                         await _repo.CommitAsync(message, ct);
                         _message.value = string.Empty;
+                    }
+                    else
+                    {
+                        SetNotice(L10n.Tr("simple.save.nochanges"));
                     }
                 }
                 SetError(null);
@@ -258,7 +263,8 @@ namespace Shiori.Editor
         {
             var stats = _status?.Stats;
             var hasChanges = _status != null && _status.HasChanges;
-            _saveButton.SetEnabled(hasChanges);
+            // Stay enabled even when git sees nothing: unsaved Inspector edits only reach disk when 保存 runs.
+            _saveButton.SetEnabled(_status != null);
             _saveStatus.text = hasChanges
                 ? L10n.Tr("simple.save.changes", stats.Total, stats.Added, stats.Modified, stats.Deleted)
                 : L10n.Tr("simple.save.nochanges");
@@ -292,8 +298,9 @@ namespace Shiori.Editor
             if (index < 0) return;
             var target = _snapshots[index];
 
-            // In-memory scene edits are invisible to git; let Unity ask about them first.
-            if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            // In-memory edits are invisible to git and would be written over the restored files later;
+            // flush them first (scenes with a prompt, assets silently).
+            if (!UnitySaver.SaveEverythingOrCancel()) return;
 
             _busy = true;
             SetNotice(null);

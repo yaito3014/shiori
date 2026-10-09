@@ -50,11 +50,13 @@ namespace Shiori.Editor
             _guard.Changed += OnLockChanged;
             GitActivity.Changed += OnGitActivityChanged;
             EditorApplication.projectChanged += OnProjectChanged;
+            AssetSaveWatcher.AssetsSaved += OnProjectChanged;
         }
 
         private void OnDisable()
         {
             _refreshGeneration++;
+            AssetSaveWatcher.AssetsSaved -= OnProjectChanged;
             EditorApplication.projectChanged -= OnProjectChanged;
             GitActivity.Changed -= OnGitActivityChanged;
             if (_guard != null)
@@ -99,7 +101,7 @@ namespace Shiori.Editor
             _mainView?.RefreshAll();
         }
 
-        /// <summary>Asset changes arrive in bursts; wait half a second before re-reading the working tree.</summary>
+        /// <summary>Asset changes and saves arrive in bursts; wait half a second before re-reading the working tree.</summary>
         private void OnProjectChanged()
         {
             if (_mainView == null || _scheduledStatusRefresh != null) return;
