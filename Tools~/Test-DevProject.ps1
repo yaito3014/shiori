@@ -19,6 +19,7 @@ param(
     [Parameter(Mandatory = $true)] [string]$UnityVersion,
     [string]$ProjectPath = "",
     [string]$LogFile = "",
+    [int]$TimeoutMinutes = 15,
     [switch]$CompileOnly
 )
 
@@ -46,7 +47,15 @@ if ($CompileOnly) {
     $args += @("-runTests", "-testPlatform", "EditMode", "-testResults", $results)
 }
 
-$process = Start-Process -FilePath $unity -ArgumentList $args -Wait -PassThru -NoNewWindow
+$process = Start-Process -FilePath $unity -ArgumentList $args -PassThru -NoNewWindow
+if (-not $process.WaitForExit($TimeoutMinutes * 60 * 1000)) {
+    # A hung editor (for example a test that blocks the main thread on a task) would otherwise wait forever.
+    Write-Host "Unity did not exit within $TimeoutMinutes minutes; killing it. See $LogFile"
+    Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+    Get-CimInstance Win32_Process -Filter "ParentProcessId = $($process.Id)" -ErrorAction SilentlyContinue |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+    exit 124
+}
 $exit = $process.ExitCode
 
 $errors = Select-String -Path $LogFile -Pattern '(error|warning) CS\d{4}' | ForEach-Object { $_.Line.Trim() } | Sort-Object -Unique
