@@ -92,7 +92,8 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 - `Shiori.Core.Tests` は Unity 非依存なので、将来 `dotnet test` だけで回せる
   構成に移してもよい（M1 では Unity Test Runner で統一する）。
 - CI（GitHub Actions + GameCI）はローカルと同じバージョン（2022.3.22f1 / 6000.6.0f1）で
-  EditMode テストを回す。プロジェクトは `Tools~/New-DevProject.ps1` で `ci-project/` に生成する。
+  EditMode テストを回す。プロジェクトは `Tools~/New-DevProject.ps1` で `ci-project~/` に生成する
+  （末尾 `~` がないと、リポジトリ＝パッケージなので Unity がプロジェクトごと取り込んで壊れる）。
   Secrets `UNITY_LICENSE` / `UNITY_EMAIL` / `UNITY_PASSWORD` が必要。
 - 変更をコミットする前に、インストール済みの全バージョンで `Test-DevProject.ps1` を通す。
 

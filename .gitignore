@@ -1,5 +1,6 @@
 # Dev projects live outside the repository (see Tools~/New-DevProject.ps1).
-# CI generates its own under ci-project/.
+# CI generates its own under ci-project~/ (trailing ~ keeps Unity from importing it as package content).
+ci-project~/
 ci-project/
 
 # IDE / OS

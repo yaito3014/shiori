@@ -5,6 +5,11 @@ on:
     branches: [main]
   pull_request:
 
+# A newer push to the same branch cancels the run that is still going.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   editmode-tests:
     name: EditMode (${{ matrix.unity }})
@@ -14,7 +19,9 @@ jobs:
       matrix:
         unity: [2022.3.22f1, 6000.6.0f1]
     env:
-      PROJECT: ci-project/${{ matrix.unity }}
+      # The repository root is the package, so the project must sit in a folder Unity ignores
+      # (trailing ~); otherwise Unity imports the project, its Library included, as package content.
+      PROJECT: ci-project~/${{ matrix.unity }}
     steps:
       - uses: actions/checkout@v4
 
@@ -38,6 +45,8 @@ jobs:
         with:
           projectPath: ${{ env.PROJECT }}
           unityVersion: ${{ matrix.unity }}
+          # The base image is a third smaller than the default linux-il2cpp one; we build nothing.
+          customImage: unityci/editor:ubuntu-${{ matrix.unity }}-base-3
           testMode: EditMode
           artifactsPath: test-results-${{ matrix.unity }}
           githubToken: ${{ secrets.GITHUB_TOKEN }}
