@@ -1,0 +1,60 @@
+name: Release
+
+# Tag a commit vX.Y.Z (matching package.json) and push the tag. This builds the VPM zip from the
+# tracked files (honouring export-ignore in .gitattributes), attaches it with package.json and a
+# SHA-256 to a GitHub release, and asks the listing repository to rebuild its index.json.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read package.json and check the tag
+        id: pkg
+        run: |
+          name=$(jq -r .name package.json)
+          version=$(jq -r .version package.json)
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "tag $GITHUB_REF_NAME does not match package.json version $version"; exit 1
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "zip=$name-$version.zip" >> "$GITHUB_OUTPUT"
+          case "$version" in *-*) echo "prerelease=--prerelease" >> "$GITHUB_OUTPUT";; *) echo "prerelease=" >> "$GITHUB_OUTPUT";; esac
+
+      - name: Build the VPM zip
+        run: |
+          git archive --format=zip --output "${{ steps.pkg.outputs.zip }}" HEAD
+          sha256sum "${{ steps.pkg.outputs.zip }}" | cut -d' ' -f1 > "${{ steps.pkg.outputs.zip }}.sha256"
+          unzip -l "${{ steps.pkg.outputs.zip }}"
+          unzip -p "${{ steps.pkg.outputs.zip }}" package.json | jq -e '.name == "${{ steps.pkg.outputs.name }}"' > /dev/null
+
+      - name: Create the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "${{ steps.pkg.outputs.zip }}" "${{ steps.pkg.outputs.zip }}.sha256" package.json \
+            --title "${{ steps.pkg.outputs.name }} ${{ steps.pkg.outputs.version }}" \
+            --generate-notes ${{ steps.pkg.outputs.prerelease }}
+
+      - name: Ask the VPM listing to rebuild
+        # Needs the repository variable VPM_LISTING_REPO (owner/repo) and the secret VPM_LISTING_TOKEN
+        # (a fine-grained PAT with contents: read/write on the listing repository). Without them the
+        # listing still picks the release up on its schedule.
+        env:
+          GH_TOKEN: ${{ secrets.VPM_LISTING_TOKEN }}
+          LISTING: ${{ vars.VPM_LISTING_REPO }}
+        run: |
+          if [ -z "$LISTING" ] || [ -z "$GH_TOKEN" ]; then
+            echo "VPM_LISTING_REPO / VPM_LISTING_TOKEN not set; the listing will rebuild on its schedule"; exit 0
+          fi
+          gh api "repos/$LISTING/dispatches" -f event_type=package-released \
+            -F 'client_payload[repository]=${{ github.repository }}' -F 'client_payload[tag]='"$GITHUB_REF_NAME"

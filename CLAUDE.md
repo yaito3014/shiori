@@ -98,6 +98,10 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
   （末尾 `~` がないと、リポジトリ＝パッケージなので Unity がプロジェクトごと取り込んで壊れる）。
   Secrets `UNITY_LICENSE` / `UNITY_EMAIL` / `UNITY_PASSWORD` が必要。
 - 変更をコミットする前に、インストール済みの全バージョンで `Test-DevProject.ps1` を通す。
+- リリース: `package.json` の version を上げて `vX.Y.Z` タグを push すると `.github/workflows/release.yml` が
+  `git archive` の zip（`Tools~` / `.github` / dotfiles は `.gitattributes` の `export-ignore` で除外）と
+  `package.json`、SHA-256 を GitHub Release に添付し、変数 `VPM_LISTING_REPO` と秘密 `VPM_LISTING_TOKEN` が
+  あれば `../vpm-listing` に `repository_dispatch` を送る。VCC / ALCOM にはそのリスティングから届く。
 - コミットごとに `.unitypackage` をワークスペース直下の `dist/` に出す。`git` の post-commit フックが
   `Tools~/Export-UnityPackage.ps1` を呼ぶ（`.git/hooks` は追跡されないので、クローン直後は
   `pwsh Tools~/Install-Hooks.ps1` で入れる）。中身は `git ls-files` の `.meta` 付きファイルだけで、
