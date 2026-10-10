@@ -63,7 +63,7 @@ shiori-unity/
 （`rev-parse --show-toplevel` がプロジェクトルートと異なる）を検出して止まるため。
 
 - `Shiori.Core` は **UnityEngine / UnityEditor を参照しない**。git CLI の呼び出し、
-  リポジトリ状態のモデル、設定ファイルの読み書き、Unity YAML の解析（将来）は
+  リポジトリ状態のモデル、設定ファイルの読み書き、Unity YAML の解析（`UnityYaml/`、自前パーサ、ADR 0005）は
   すべてここに置く。Unity 固有のものを入れたくなったら設計を見直す。
 - `Shiori.Editor` が `Shiori.Core` を参照する。逆方向の参照は禁止。
 - 名前空間は `Shiori` と `Shiori.Editor`。`Shiori.VRChat` は本リポジトリに作らない。
@@ -178,8 +178,6 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 
 次の点は未決定。実装が必要になったら着手前にユーザーに聞くこと。
 
-- Unity YAML（シーン / プレハブ）の意味的差分の実装方式
-  （自前パーサか、Unity 同梱の YamlDotNet に依存するか）
 - 競合解決の UI（UnityYAMLMerge 失敗時のフォールバック表示）
 - サムネイルの保存先（`refs/notes/shiori` か orphan ブランチか）
 - VPM リポジトリ（index.json）の公開手順と、`shiori-vrchat` への分割タイミング

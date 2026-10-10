@@ -3,6 +3,20 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [Unreleased]
+
+### 日本語
+
+- **詳細モードで、プレハブとマテリアルの変更を Unity の言葉で見られるようになりました。**
+  どの GameObject のどのコンポーネントの、どのプロパティが、どう変わったか（例: `m_LocalPosition.y: 1.5 → 1.75`）を並べます。
+  テクスチャなどの参照はアセットのパスで表示します。「テキスト」に切り替えると、今までの差分表示に戻ります。
+
+### English
+
+- **Detail mode shows prefab and material changes in Unity terms**: which GameObject, component and property changed and
+  how (for example `m_LocalPosition.y: 1.5 → 1.75`), with referenced assets shown by path. 「テキスト」 switches back to
+  the text diff.
+
 ## [0.3.0] - 2026-10-10
 
 ### 日本語
