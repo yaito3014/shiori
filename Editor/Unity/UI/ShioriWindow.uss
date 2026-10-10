@@ -583,3 +583,49 @@
     margin-left: 8px;
     flex-shrink: 1;
 }
+
+/* ---- detail mode: toolbar, tabs, pages ---- */
+
+.shiori-detail-toolbar {
+    flex-direction: column;
+}
+
+.shiori-detail-commit-message {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-right: 4px;
+}
+
+.shiori-detail-remote-row {
+    margin-top: 4px;
+    align-items: center;
+}
+
+.shiori-detail-remote-status {
+    flex-grow: 1;
+    flex-shrink: 1;
+    margin-left: 8px;
+}
+
+.shiori-detail-tabs {
+    margin: 0 0 6px 0;
+}
+
+.shiori-detail-page {
+    flex-grow: 1;
+    min-height: 0;
+}
+
+.shiori-detail-hash {
+    width: 64px;
+    -unity-text-align: middle-left;
+}
+
+.shiori-detail-stashes {
+    flex-grow: 1;
+}
+
+.shiori-detail-stash-list {
+    flex-grow: 1;
+    margin-top: 4px;
+}

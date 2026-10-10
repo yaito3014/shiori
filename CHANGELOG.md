@@ -10,12 +10,16 @@ Each release is described for the people who use it. The developer-level detail 
 - **受信できるようになりました。** ほかの PC から送信された保存を受け取り、プロジェクトを最新にします。
   保存していない変更があるときや、この PC とほかの PC で別々に保存していたときは、何も変えずに理由を知らせます。
 - かんたんモードが数分ごとに送信先を確かめ、受信できる保存があると知らせます。この確認でサインイン画面は出ません。
+- **詳細モードで操作できるようになりました。** コミット、プッシュ、プル（fast-forward のみ）、ログからの「この状態に戻す」、
+  スタッシュの適用ができます。中身はかんたんモードと同じ処理です。
 
 ### English
 
 - **受信 (receive).** Saves sent from another PC are received and the project moves forward to them (fast-forward
   only). With unsaved changes, or when this PC and another one saved separately, nothing changes and the reason is shown.
 - Simple mode checks the 送信先 every few minutes and shows how many saves are waiting, without ever opening a sign-in window.
+- **Detail mode can act, not just show.** Commit, push, pull (fast-forward only), restore to a commit from the log,
+  and apply any stash, using the same flows and safety checks as simple mode. Tabs: changes, log, stashes.
 
 ## [0.2.0] - 2026-10-10
 

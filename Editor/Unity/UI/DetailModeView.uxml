@@ -1,21 +1,69 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement class="shiori-detail">
         <ui:Label name="view-error" class="shiori-error shiori-hidden" />
-        <ui:TwoPaneSplitView name="split" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="180" class="shiori-detail-split">
-            <ui:VisualElement name="files-pane" class="shiori-panel shiori-files-pane">
-                <ui:VisualElement class="shiori-row shiori-panel-header">
-                    <ui:Label name="files-title" class="shiori-panel-title" />
-                    <ui:Button name="files-refresh" class="shiori-small-button" />
+        <ui:Label name="view-notice" class="shiori-notice shiori-hidden" />
+
+        <ui:VisualElement name="toolbar" class="shiori-panel shiori-detail-toolbar">
+            <ui:VisualElement class="shiori-row">
+                <ui:TextField name="commit-message" class="shiori-detail-commit-message" />
+                <ui:Button name="commit-button" class="shiori-small-button" />
+            </ui:VisualElement>
+            <ui:VisualElement class="shiori-row shiori-detail-remote-row">
+                <ui:Button name="push-button" class="shiori-small-button" />
+                <ui:Button name="pull-button" class="shiori-small-button" />
+                <ui:Label name="remote-status" class="shiori-muted shiori-detail-remote-status" />
+                <ui:Button name="files-refresh" class="shiori-small-button" />
+            </ui:VisualElement>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="tabs" class="shiori-row shiori-detail-tabs">
+            <ui:Button name="tab-changes" class="shiori-mode-button" />
+            <ui:Button name="tab-history" class="shiori-mode-button" />
+            <ui:Button name="tab-stashes" class="shiori-mode-button" />
+        </ui:VisualElement>
+
+        <ui:VisualElement name="page-changes" class="shiori-detail-page">
+            <ui:TwoPaneSplitView name="split" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="180" class="shiori-detail-split">
+                <ui:VisualElement name="files-pane" class="shiori-panel shiori-files-pane">
+                    <ui:VisualElement class="shiori-row shiori-panel-header">
+                        <ui:Label name="files-title" class="shiori-panel-title" />
+                    </ui:VisualElement>
+                    <ui:Label name="files-empty" class="shiori-muted shiori-hidden" />
+                    <ui:ListView name="files-list" class="shiori-files-list" />
                 </ui:VisualElement>
-                <ui:Label name="files-empty" class="shiori-muted shiori-hidden" />
-                <ui:ListView name="files-list" class="shiori-files-list" />
+                <ui:VisualElement name="diff-pane" class="shiori-panel shiori-diff-pane">
+                    <ui:Label name="diff-title" class="shiori-diff-title" />
+                    <ui:Label name="diff-empty" class="shiori-muted" />
+                    <ui:Label name="diff-truncated" class="shiori-muted shiori-hidden" />
+                    <ui:ListView name="diff-lines" class="shiori-diff-lines" />
+                </ui:VisualElement>
+            </ui:TwoPaneSplitView>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="page-history" class="shiori-detail-page shiori-hidden">
+            <ui:TwoPaneSplitView name="history-split" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="200" class="shiori-detail-split">
+                <ui:VisualElement class="shiori-panel shiori-files-pane">
+                    <ui:Label name="log-empty" class="shiori-muted shiori-hidden" />
+                    <ui:ListView name="log-list" class="shiori-files-list" />
+                    <ui:Button name="log-more" class="shiori-small-button shiori-hidden" />
+                </ui:VisualElement>
+                <ui:VisualElement class="shiori-panel shiori-diff-pane">
+                    <ui:VisualElement class="shiori-row shiori-panel-header">
+                        <ui:Label name="commit-title" class="shiori-detail-message" />
+                        <ui:Button name="commit-restore" class="shiori-small-button shiori-hidden" />
+                    </ui:VisualElement>
+                    <ui:Label name="commit-meta" class="shiori-muted" />
+                    <ui:ListView name="commit-files" class="shiori-files-list" />
+                </ui:VisualElement>
+            </ui:TwoPaneSplitView>
+        </ui:VisualElement>
+
+        <ui:VisualElement name="page-stashes" class="shiori-detail-page shiori-hidden">
+            <ui:VisualElement class="shiori-panel shiori-files-pane shiori-detail-stashes">
+                <ui:Label name="stash-help" class="shiori-muted" />
+                <ui:Label name="stash-empty" class="shiori-muted shiori-hidden" />
+                <ui:ScrollView name="stash-list" class="shiori-detail-stash-list" />
             </ui:VisualElement>
-            <ui:VisualElement name="diff-pane" class="shiori-panel shiori-diff-pane">
-                <ui:Label name="diff-title" class="shiori-diff-title" />
-                <ui:Label name="diff-empty" class="shiori-muted" />
-                <ui:Label name="diff-truncated" class="shiori-muted shiori-hidden" />
-                <ui:ListView name="diff-lines" class="shiori-diff-lines" />
-            </ui:VisualElement>
-        </ui:TwoPaneSplitView>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>
