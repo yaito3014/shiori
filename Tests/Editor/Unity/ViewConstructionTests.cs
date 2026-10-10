@@ -78,6 +78,73 @@ namespace Shiori.Editor.Tests
             Assert.That(view.Q<Label>("view-error").ClassListContains("shiori-hidden"), Is.True, view.Q<Label>("view-error").text);
         }
 
+        [UnityTest]
+        public IEnumerator DetailModeView_ListsCommitsAndStashes_AndRemembersTheTab()
+        {
+            yield return PrepareRepository();
+            // A stash to list: set the current edits aside the way 「保存せずに戻す」 does.
+            var head = _session.Repository.GetHeadAsync(CancellationToken.None);
+            yield return Await(head);
+            yield return Await(RestoreRunner.RunAsync(_session.Repository, head.Result, "first", RestoreMode.StashFirst, null, CancellationToken.None));
+
+            var view = new DetailModeView(_session);
+            Assert.That(view.CurrentTab, Is.EqualTo(DetailModeView.TabChanges));
+            view.RefreshAll();
+            var started = System.DateTime.UtcNow;
+            while (view.Q<ListView>("log-list").itemsSource.Count == 0 || view.Q<ScrollView>("stash-list").childCount == 0)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("log / stashes did not load");
+                yield return null;
+            }
+            Assert.That(view.Q<ScrollView>("stash-list").childCount, Is.EqualTo(1));
+            Assert.That(view.Q<Label>("remote-status").text, Is.EqualTo(L10n.Tr("detail.remote.none")));
+            Assert.That(view.Q<Button>("push-button").text, Is.EqualTo(L10n.Tr("detail.remote.setup")));
+            Assert.That(view.Q<Button>("pull-button").ClassListContains("shiori-hidden"), Is.True);
+
+            view.ShowTab(DetailModeView.TabHistory);
+            Assert.That(view.Q<VisualElement>("page-history").ClassListContains("shiori-hidden"), Is.False);
+            Assert.That(view.Q<VisualElement>("page-changes").ClassListContains("shiori-hidden"), Is.True);
+            Assert.That(new ShioriSession(_root).User.LastTab, Is.EqualTo(DetailModeView.TabHistory), "the tab is remembered in UserSettings");
+            Assert.That(new DetailModeView(_session).CurrentTab, Is.EqualTo(DetailModeView.TabHistory), "and reopened");
+        }
+
+        [UnityTest]
+        public IEnumerator SaveFlow_CommitsEverythingAndReportsNothingToSave()
+        {
+            yield return PrepareRepository();
+            var save = SaveFlow.RunAsync(_session, "detail commit", CancellationToken.None);
+            yield return Await(save);
+            Assert.That(save.Result, Is.Not.Null);
+            var log = _session.Repository.GetLogAsync(1, 0, CancellationToken.None);
+            yield return Await(log);
+            Assert.That(log.Result[0].Message, Is.EqualTo("detail commit"));
+
+            var again = SaveFlow.RunAsync(_session, "nothing", CancellationToken.None);
+            yield return Await(again);
+            Assert.That(again.Result, Is.Null, "a clean tree commits nothing");
+        }
+
+        [Test]
+        public void DetailMessages_ExplainEachOutcome()
+        {
+            Assert.That(DetailModeView.DescribeRemote(new SendStatus("u", 2, false), new RemoteComparison(true, 2, 1)), Is.EqualTo(L10n.Tr("detail.remote.diverged", 2, 1)));
+            Assert.That(DetailModeView.DescribeRemote(new SendStatus("u", 0, false), new RemoteComparison(true, 0, 3)), Is.EqualTo(L10n.Tr("detail.remote.status", 0, 3)));
+            Assert.That(DetailModeView.DescribeRemote(new SendStatus("u", 4, true), RemoteComparison.Unknown), Is.EqualTo(L10n.Tr("detail.remote.unknown")));
+            Assert.That(DetailModeView.DescribeRemote(null, null), Is.EqualTo(L10n.Tr("detail.remote.none")));
+            Assert.That(DetailModeView.DescribePush(new SendResult(SendOutcome.Sent, 3, false)), Is.EqualTo(L10n.Tr("detail.push.done", 3)));
+            Assert.That(DetailModeView.DescribePull(new ReceiveResult(ReceiveOutcome.Diverged, 2)), Is.EqualTo(L10n.Tr("detail.pull.diverged", 2)));
+            Assert.That(DetailModeView.DescribeStashApply(new SetAsidePlan(SetAsideBlock.None, new[] { "a", "b" }, null)), Is.EqualTo(L10n.Tr("detail.stash.done", 2)));
+            Assert.That(DetailModeView.DescribeStashApply(new SetAsidePlan(SetAsideBlock.Overlap, new[] { "a" }, new[] { "a" })), Is.EqualTo(L10n.Tr("detail.stash.overlap", "a")));
+            foreach (ReceiveOutcome outcome in System.Enum.GetValues(typeof(ReceiveOutcome)))
+            {
+                Assert.That(DetailModeView.DescribePull(new ReceiveResult(outcome)), Does.Not.StartWith("detail."), outcome.ToString());
+            }
+            foreach (SendOutcome outcome in System.Enum.GetValues(typeof(SendOutcome)))
+            {
+                Assert.That(DetailModeView.DescribePush(new SendResult(outcome, 0, false)), Does.Not.StartWith("detail."), outcome.ToString());
+            }
+        }
+
         [Test]
         public void DetailModeView_FindsTheEditorsMonospaceFont()
         {
@@ -179,7 +246,7 @@ namespace Shiori.Editor.Tests
             {
                 Assert.That(RemoteText.Describe(new ReceiveResult(outcome)), Is.Not.Empty.And.Not.StartWith("receive."), outcome.ToString());
             }
-            Assert.That(SimpleModeView.BackgroundCheckInterval, Is.GreaterThanOrEqualTo(System.TimeSpan.FromMinutes(1)), "never a tight polling loop");
+            Assert.That(RemoteWatch.Interval, Is.GreaterThanOrEqualTo(System.TimeSpan.FromMinutes(1)), "never a tight polling loop");
         }
 
         [Test]

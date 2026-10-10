@@ -102,8 +102,8 @@ namespace Shiori.Editor.Tests
             Assert.That(session.GetStatusLine(), Is.EqualTo(FakeExtension.StatusLine));
             Assert.That(session.GetMemoPlaceholder(), Is.EqualTo(FakeExtension.MemoPlaceholder));
             Assert.That(session.GetRestoreWarning(null), Is.EqualTo(FakeExtension.RestoreWarning));
-            Assert.That(SimpleModeView.WithWarning("body", FakeExtension.RestoreWarning), Is.EqualTo("body\n\n" + FakeExtension.RestoreWarning));
-            Assert.That(SimpleModeView.WithWarning("body", null), Is.EqualTo("body"));
+            Assert.That(RestoreFlow.WithWarning("body", FakeExtension.RestoreWarning), Is.EqualTo("body\n\n" + FakeExtension.RestoreWarning));
+            Assert.That(RestoreFlow.WithWarning("body", null), Is.EqualTo("body"));
         }
 
         [Test]
