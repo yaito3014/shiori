@@ -3,7 +3,7 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
-## [Unreleased]
+## [0.3.0] - 2026-10-10
 
 ### 日本語
 
