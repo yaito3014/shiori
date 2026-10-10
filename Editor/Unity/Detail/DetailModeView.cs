@@ -56,6 +56,15 @@ namespace Shiori.Editor
         private readonly Label _diffEmpty;
         private readonly Label _diffTruncated;
         private readonly ListView _diffLines;
+        private readonly VisualElement _diffMode;
+        private readonly Button _diffModeUnity;
+        private readonly Button _diffModeText;
+        private readonly ListView _unityDiff;
+        private readonly List<UnityDiffRow> _unityRows = new List<UnityDiffRow>();
+        private FileChange _diffChange;
+
+        /// <summary>Whether supported files open in the Unity view; kept for the editor session.</summary>
+        private static bool _preferUnityView = true;
 
         private readonly Label _logEmpty;
         private readonly ListView _logList;
@@ -152,6 +161,21 @@ namespace Shiori.Editor
             _diffLines.itemsSource = _lines;
             var monospace = Monospace;
             if (monospace != null) _diffLines.style.unityFontDefinition = new StyleFontDefinition(FontDefinition.FromFont(monospace));
+
+            _diffMode = this.Q<VisualElement>("diff-mode");
+            _diffModeUnity = this.Q<Button>("diff-mode-unity");
+            _diffModeUnity.text = L10n.Tr("detail.unity.view");
+            _diffModeUnity.tooltip = L10n.Tr("detail.unity.view.tooltip");
+            _diffModeUnity.clicked += () => SetDiffView(unity: true);
+            _diffModeText = this.Q<Button>("diff-mode-text");
+            _diffModeText.text = L10n.Tr("detail.unity.text");
+            _diffModeText.clicked += () => SetDiffView(unity: false);
+            _unityDiff = this.Q<ListView>("unity-diff");
+            _unityDiff.makeItem = MakeUnityDiffRow;
+            _unityDiff.bindItem = BindUnityDiffRow;
+            _unityDiff.fixedItemHeight = 18;
+            _unityDiff.selectionType = SelectionType.None;
+            _unityDiff.itemsSource = _unityRows;
 
             // ---- log ----
             _logEmpty = this.Q<Label>("log-empty");
@@ -563,6 +587,7 @@ namespace Shiori.Editor
         private async void LoadDiff(FileChange change)
         {
             SelectedPath = change.Path;
+            _diffChange = change;
             var generation = ++_diffGeneration;
             _diffTitle.text = change.Path;
             try
@@ -574,12 +599,86 @@ namespace Shiori.Editor
                 var truncated = lines.Count > MaxDiffLines;
                 ShowDiff(change.Path, lines, truncated);
                 SetError(null);
+                if (UnityDiffPresenter.IsSupported(change.Path) && _preferUnityView) await LoadUnityDiff(change, generation);
             }
             catch (Exception ex)
             {
                 if (generation != _diffGeneration) return;
                 SetError(Describe(ex));
             }
+        }
+
+        /// <summary>Fills the Unity view for <paramref name="change"/> and shows it instead of the text diff.</summary>
+        private async System.Threading.Tasks.Task LoadUnityDiff(FileChange change, int generation)
+        {
+            _unityRows.Clear();
+            _unityRows.Add(new UnityDiffRow(UnityDiffRowKind.Message, UnityObjectChangeKind.Changed, L10n.Tr("detail.unity.loading")));
+            ShowUnityList(true);
+            var rows = await UnityDiffPresenter.LoadWorkingTreeAsync(_repo, _session.ProjectRoot, change.Path, CancellationToken.None);
+            if (generation != _diffGeneration) return;
+            _unityRows.Clear();
+            _unityRows.AddRange(rows);
+            _unityDiff.RefreshItems();
+            _unityDiff.ScrollToItem(0);
+        }
+
+        private async void SetDiffView(bool unity)
+        {
+            _preferUnityView = unity;
+            if (_diffChange == null || !UnityDiffPresenter.IsSupported(_diffChange.Path)) return;
+            if (!unity)
+            {
+                ShowUnityList(false);
+                return;
+            }
+            try
+            {
+                await LoadUnityDiff(_diffChange, _diffGeneration);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+        }
+
+        /// <summary>Switches the diff pane between the Unity view and the text diff, and marks the active button.</summary>
+        private void ShowUnityList(bool unity)
+        {
+            _diffModeUnity.EnableInClassList(TabActiveClass, unity);
+            _diffModeText.EnableInClassList(TabActiveClass, !unity);
+            _unityDiff.EnableInClassList(HiddenClass, !unity);
+            if (unity)
+            {
+                _diffLines.EnableInClassList(HiddenClass, true);
+                _diffEmpty.EnableInClassList(HiddenClass, true);
+                _diffTruncated.EnableInClassList(HiddenClass, true);
+            }
+            else
+            {
+                var empty = _lines.Count == 0;
+                _diffLines.EnableInClassList(HiddenClass, empty);
+                _diffEmpty.EnableInClassList(HiddenClass, !empty);
+            }
+            _unityDiff.RefreshItems();
+        }
+
+        private static VisualElement MakeUnityDiffRow()
+        {
+            var label = new Label();
+            label.AddToClassList("shiori-diff-line");
+            return label;
+        }
+
+        private void BindUnityDiffRow(VisualElement element, int index)
+        {
+            if (index < 0 || index >= _unityRows.Count) return;
+            var row = _unityRows[index];
+            var label = (Label)element;
+            label.text = row.Kind == UnityDiffRowKind.Property ? "    " + row.Text : row.Text;
+            label.EnableInClassList("shiori-unity-diff-object", row.Kind == UnityDiffRowKind.Object);
+            label.EnableInClassList("shiori-diff-line--added", row.Kind != UnityDiffRowKind.Message && row.Change == UnityObjectChangeKind.Added);
+            label.EnableInClassList("shiori-diff-line--removed", row.Kind != UnityDiffRowKind.Message && row.Change == UnityObjectChangeKind.Removed);
+            label.EnableInClassList("shiori-diff-line--meta", row.Kind == UnityDiffRowKind.Message);
         }
 
         /// <summary>Drops "diff --git", "index", "---", "+++" and similar lines; the file name is already in the title.</summary>
@@ -596,8 +695,14 @@ namespace Shiori.Editor
         private void ShowDiff(string path, IReadOnlyList<DiffLine> lines, bool truncated)
         {
             _lines.Clear();
+            var supported = UnityDiffPresenter.IsSupported(path);
+            _diffMode.EnableInClassList(HiddenClass, !supported);
+            _diffModeUnity.EnableInClassList(TabActiveClass, false);
+            _diffModeText.EnableInClassList(TabActiveClass, supported);
+            _unityDiff.EnableInClassList(HiddenClass, true);
             if (path == null)
             {
+                _diffChange = null;
                 _diffTitle.text = string.Empty;
                 _diffEmpty.text = L10n.Tr("detail.diff.select");
                 _diffEmpty.EnableInClassList(HiddenClass, false);

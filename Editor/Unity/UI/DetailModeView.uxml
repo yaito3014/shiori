@@ -32,10 +32,17 @@
                     <ui:ListView name="files-list" class="shiori-files-list" />
                 </ui:VisualElement>
                 <ui:VisualElement name="diff-pane" class="shiori-panel shiori-diff-pane">
-                    <ui:Label name="diff-title" class="shiori-diff-title" />
+                    <ui:VisualElement class="shiori-row shiori-panel-header">
+                        <ui:Label name="diff-title" class="shiori-diff-title" />
+                        <ui:VisualElement name="diff-mode" class="shiori-row shiori-hidden">
+                            <ui:Button name="diff-mode-unity" class="shiori-mode-button" />
+                            <ui:Button name="diff-mode-text" class="shiori-mode-button" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
                     <ui:Label name="diff-empty" class="shiori-muted" />
                     <ui:Label name="diff-truncated" class="shiori-muted shiori-hidden" />
                     <ui:ListView name="diff-lines" class="shiori-diff-lines" />
+                    <ui:ListView name="unity-diff" class="shiori-diff-lines shiori-hidden" />
                 </ui:VisualElement>
             </ui:TwoPaneSplitView>
         </ui:VisualElement>

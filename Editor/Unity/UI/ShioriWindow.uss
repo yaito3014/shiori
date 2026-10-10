@@ -629,3 +629,10 @@
     flex-grow: 1;
     margin-top: 4px;
 }
+
+/* ---- detail mode: Unity view of a diff ---- */
+
+.shiori-unity-diff-object {
+    -unity-font-style: bold;
+    margin-top: 2px;
+}

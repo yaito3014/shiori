@@ -1,5 +1,6 @@
 using System.Collections;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -106,6 +107,69 @@ namespace Shiori.Editor.Tests
             Assert.That(view.Q<VisualElement>("page-changes").ClassListContains("shiori-hidden"), Is.True);
             Assert.That(new ShioriSession(_root).User.LastTab, Is.EqualTo(DetailModeView.TabHistory), "the tab is remembered in UserSettings");
             Assert.That(new DetailModeView(_session).CurrentTab, Is.EqualTo(DetailModeView.TabHistory), "and reopened");
+        }
+
+        private const string MaterialText = @"%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  m_Name: Skin
+  m_SavedProperties:
+    m_Colors:
+    - _Color: {r: 1, g: 1, b: 1, a: 1}
+";
+
+        [UnityTest]
+        public IEnumerator DetailModeView_ShowsAMaterialChangeInTheUnityView()
+        {
+            yield return PrepareRepository();
+            File.WriteAllText(Path.Combine(_root, "Assets", "Skin.mat"), MaterialText);
+            yield return Await(SaveFlow.RunAsync(_session, "add material", CancellationToken.None));
+            File.WriteAllText(Path.Combine(_root, "Assets", "Skin.mat"), MaterialText.Replace("g: 1,", "g: 0.5,"));
+
+            var view = new DetailModeView(_session);
+            view.ShowTab(DetailModeView.TabChanges);
+            view.RestoreSelection("Assets/Skin.mat");
+            view.RefreshAll();
+            var unity = view.Q<ListView>("unity-diff");
+            var started = System.DateTime.UtcNow;
+            while (unity.ClassListContains("shiori-hidden") || unity.itemsSource.Count < 2)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the Unity view did not appear");
+                yield return null;
+            }
+            Assert.That(view.Q<VisualElement>("diff-mode").ClassListContains("shiori-hidden"), Is.False, "the switch is shown for .mat");
+            Assert.That(view.Q<ListView>("diff-lines").ClassListContains("shiori-hidden"), Is.True, "the text diff steps aside");
+            var rows = (System.Collections.Generic.List<UnityDiffRow>)unity.itemsSource;
+            Assert.That(rows[0].Text, Is.EqualTo(L10n.Tr("detail.unity.changed") + "  Material (Skin)"));
+            Assert.That(rows[1].Text, Is.EqualTo("m_SavedProperties.m_Colors._Color.g: 1  →  0.5"));
+        }
+
+        [Test]
+        public void UnityDiffRows_DescribeEachKind()
+        {
+            Assert.That(UnityDiffPresenter.IsSupported("Assets/a.prefab"), Is.True);
+            Assert.That(UnityDiffPresenter.IsSupported("Assets/a.MAT"), Is.True);
+            Assert.That(UnityDiffPresenter.IsSupported("Assets/a.unity"), Is.False, "scenes are not in the first version");
+            Assert.That(UnityDiffPresenter.IsSupported(null), Is.False);
+
+            var none = UnityDiffPresenter.BuildRows(new UnityObjectChange[0]);
+            Assert.That(none.Single().Text, Is.EqualTo(L10n.Tr("detail.unity.none")));
+
+            var rows = UnityDiffPresenter.BuildRows(new[]
+            {
+                new UnityObjectChange(UnityObjectChangeKind.Added, 1, "Light", "Avatar/Hat", new[] { new UnityPropertyChange("m_Intensity", null, "2") }),
+                new UnityObjectChange(UnityObjectChangeKind.Removed, 2, "Material", "", new[] { new UnityPropertyChange("m_Name", "Old", null) }),
+            });
+            Assert.That(rows.Select(r => r.Text), Is.EqualTo(new[]
+            {
+                L10n.Tr("detail.unity.added") + "  Light (Avatar/Hat)",
+                "m_Intensity: 2",
+                L10n.Tr("detail.unity.removed") + "  Material",
+                "m_Name: Old",
+            }));
+            Assert.That(rows[1].Change, Is.EqualTo(UnityObjectChangeKind.Added));
+            Assert.That(rows[3].Change, Is.EqualTo(UnityObjectChangeKind.Removed));
         }
 
         [UnityTest]
