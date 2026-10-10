@@ -60,13 +60,25 @@ namespace Shiori.Editor
             return !string.IsNullOrEmpty(path) && Supported.Contains(Path.GetExtension(path));
         }
 
-        /// <summary>Compares HEAD with the working tree for <paramref name="path"/> and returns the rows to show.</summary>
-        public static async Task<List<UnityDiffRow>> LoadWorkingTreeAsync(IGitRepository repository, string projectRoot, string path, CancellationToken cancellationToken)
+        /// <summary>
+        /// The rows to show for one side of a change: what is staged (HEAD against the index) or what is
+        /// not (the index against the file on disk).
+        /// </summary>
+        public static async Task<List<UnityDiffRow>> LoadAsync(IGitRepository repository, string projectRoot, FileChange change, bool staged, CancellationToken cancellationToken)
         {
-            var head = await repository.GetHeadAsync(cancellationToken);
-            var before = head == null ? null : await repository.ReadFileAtAsync("HEAD", path, cancellationToken);
-            var file = Path.Combine(projectRoot, path.Replace('/', Path.DirectorySeparatorChar));
-            var after = File.Exists(file) ? File.ReadAllText(file, new UTF8Encoding(false)) : null;
+            string before, after;
+            if (staged)
+            {
+                var head = await repository.GetHeadAsync(cancellationToken);
+                before = head == null ? null : await repository.ReadFileAtAsync("HEAD", change.OldPath ?? change.Path, cancellationToken);
+                after = await repository.ReadFileAtAsync(":0", change.Path, cancellationToken);
+            }
+            else
+            {
+                before = change.Kind == ChangeKind.Untracked ? null : await repository.ReadFileAtAsync(":0", change.Path, cancellationToken);
+                var file = Path.Combine(projectRoot, change.Path.Replace('/', Path.DirectorySeparatorChar));
+                after = File.Exists(file) ? File.ReadAllText(file, new UTF8Encoding(false)) : null;
+            }
             // Resolve GUIDs on the main thread (AssetDatabase), parse and compare on a worker: big prefabs take a moment.
             var resolver = new PrefetchedResolver(new AssetGuidResolver(), before, after);
             var changes = await Task.Run(() => UnityYamlDiff.Compare(before, after, resolver), cancellationToken);

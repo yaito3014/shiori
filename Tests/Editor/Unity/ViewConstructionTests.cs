@@ -145,6 +145,62 @@ Material:
             Assert.That(rows[1].Text, Is.EqualTo("m_SavedProperties.m_Colors._Color.g: 1  →  0.5"));
         }
 
+        [UnityTest]
+        public IEnumerator DetailModeView_SplitsStagedAndUnstaged_AndCommitsOnlyWhatIsStaged()
+        {
+            yield return PrepareRepository();
+            yield return Await(_session.Repository.StageAsync(new[] { "Assets/a.txt" }, CancellationToken.None));
+
+            var view = new DetailModeView(_session);
+            view.RestoreSelection("Assets/a.txt");
+            view.RefreshAll();
+            var staged = view.Q<ListView>("staged-list");
+            var unstaged = view.Q<ListView>("files-list");
+            var started = System.DateTime.UtcNow;
+            while (staged.itemsSource.Count == 0 || view.Q<ListView>("diff-lines").itemsSource.Count == 0)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60)
+                {
+                    Assert.Fail("the staged list did not load: staged=" + staged.itemsSource.Count + " unstaged=" + unstaged.itemsSource.Count
+                        + " diff=" + view.Q<ListView>("diff-lines").itemsSource.Count + " selected=" + view.SelectedPath + "/" + view.SelectedStaged
+                        + " error=" + view.Q<Label>("view-error").text);
+                }
+                yield return null;
+            }
+            Assert.That(((System.Collections.Generic.List<FileChange>)staged.itemsSource).Select(c => c.Path), Is.EqualTo(new[] { "Assets/a.txt" }));
+            Assert.That(((System.Collections.Generic.List<FileChange>)unstaged.itemsSource).Select(c => c.Path), Is.EqualTo(new[] { "Assets/new.txt" }));
+            Assert.That(view.SelectedStaged, Is.True, "a.txt is only staged, so the selection follows it there");
+            Assert.That(view.Q<Label>("staged-title").text, Is.EqualTo(L10n.Tr("detail.staged.title", 1)));
+            Assert.That(view.Q<Button>("commit-button").text, Is.EqualTo(L10n.Tr("detail.commit.staged")));
+
+            var save = SaveFlow.RunStagedAsync(_session, "only a", CancellationToken.None);
+            yield return Await(save);
+            Assert.That(save.Result, Is.Not.Null);
+            var status = _session.Repository.GetStatusAsync(CancellationToken.None);
+            yield return Await(status);
+            Assert.That(status.Result.Changes.Select(c => c.Path), Is.EqualTo(new[] { "Assets/new.txt" }), "the unstaged file is left out");
+
+            var nothing = SaveFlow.RunStagedAsync(_session, "nothing staged", CancellationToken.None);
+            yield return Await(nothing);
+            Assert.That(nothing.Result, Is.Null);
+        }
+
+        [Test]
+        public void SaveFlow_StagedOnly_CountsTheIndexSide()
+        {
+            var status = new WorktreeStatus("main", null, false, new[]
+            {
+                new FileChange("a", ChangeKind.Deleted, 'M', 'D'),
+                new FileChange("b", ChangeKind.Modified, '.', 'M'),
+                new FileChange("c", ChangeKind.Untracked, '?', '?'),
+                new FileChange("d", ChangeKind.Added, 'A', '.'),
+            });
+            var staged = SaveFlow.StagedOnly(status);
+            Assert.That(staged.Select(c => c.Path), Is.EqualTo(new[] { "a", "d" }));
+            Assert.That(staged[0].Kind, Is.EqualTo(ChangeKind.Modified), "a is modified in the index even though it is deleted on disk");
+            Assert.That(staged[1].Kind, Is.EqualTo(ChangeKind.Added));
+        }
+
         [Test]
         public void UnityDiffRows_DescribeEachKind()
         {

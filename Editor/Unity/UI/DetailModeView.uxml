@@ -23,10 +23,17 @@
         </ui:VisualElement>
 
         <ui:VisualElement name="page-changes" class="shiori-detail-page">
-            <ui:TwoPaneSplitView name="split" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="180" class="shiori-detail-split">
+            <ui:TwoPaneSplitView name="split" orientation="Vertical" fixed-pane-index="0" fixed-pane-initial-dimension="240" class="shiori-detail-split">
                 <ui:VisualElement name="files-pane" class="shiori-panel shiori-files-pane">
                     <ui:VisualElement class="shiori-row shiori-panel-header">
+                        <ui:Label name="staged-title" class="shiori-panel-title" />
+                        <ui:Button name="unstage-all" class="shiori-small-button" />
+                    </ui:VisualElement>
+                    <ui:Label name="staged-empty" class="shiori-muted" />
+                    <ui:ListView name="staged-list" class="shiori-files-list shiori-hidden" />
+                    <ui:VisualElement class="shiori-row shiori-panel-header shiori-detail-unstaged-header">
                         <ui:Label name="files-title" class="shiori-panel-title" />
+                        <ui:Button name="stage-all" class="shiori-small-button" />
                     </ui:VisualElement>
                     <ui:Label name="files-empty" class="shiori-muted shiori-hidden" />
                     <ui:ListView name="files-list" class="shiori-files-list" />

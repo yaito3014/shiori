@@ -9,9 +9,9 @@ namespace Shiori.Editor
 {
     /// <summary>
     /// Detail mode: the same operations as simple mode under their git names, for people who know git.
-    /// A toolbar commits (stage all + commit), pushes and pulls (fast-forward only); three tabs show the
-    /// working-tree changes with diffs, the commit log with "restore to this state", and every stash
-    /// with apply. Every action goes through the same flows as simple mode (<see cref="SaveFlow"/>,
+    /// A toolbar commits (what is staged, or everything when nothing is), pushes and pulls (fast-forward
+    /// only); three tabs show the staged and unstaged changes with diffs and +/- to move files between
+    /// them, the commit log with "restore to this state", and every stash with apply. Every action goes through the same flows as simple mode (<see cref="SaveFlow"/>,
     /// <see cref="RestoreFlow"/>, <see cref="SendRunner"/>, <see cref="ReceiveOperation"/>,
     /// <see cref="SetAsideOperation"/>), so behaviour and safety rules are identical.
     /// </summary>
@@ -50,8 +50,14 @@ namespace Shiori.Editor
         private readonly Dictionary<string, Button> _tabButtons = new Dictionary<string, Button>();
         private readonly Dictionary<string, VisualElement> _pages = new Dictionary<string, VisualElement>();
 
+        private readonly Label _stagedTitle;
+        private readonly Label _stagedEmpty;
+        private readonly ListView _stagedList;
+        private readonly Button _unstageAll;
+        private readonly Label _filesTitle;
         private readonly Label _filesEmpty;
         private readonly ListView _filesList;
+        private readonly Button _stageAll;
         private readonly Label _diffTitle;
         private readonly Label _diffEmpty;
         private readonly Label _diffTruncated;
@@ -62,6 +68,7 @@ namespace Shiori.Editor
         private readonly ListView _unityDiff;
         private readonly List<UnityDiffRow> _unityRows = new List<UnityDiffRow>();
         private FileChange _diffChange;
+        private bool _diffStaged;
 
         /// <summary>Whether supported files open in the Unity view; kept for the editor session.</summary>
         private static bool _preferUnityView = true;
@@ -77,7 +84,9 @@ namespace Shiori.Editor
         private readonly Label _stashEmpty;
         private readonly ScrollView _stashList;
 
+        /// <summary>Unstaged changes (the working tree against the index), untracked files included.</summary>
         private readonly List<FileChange> _changes = new List<FileChange>();
+        private readonly List<FileChange> _staged = new List<FileChange>();
         private readonly List<DiffLine> _lines = new List<DiffLine>();
         private readonly List<Snapshot> _log = new List<Snapshot>();
         private readonly List<FileChange> _commitChanges = new List<FileChange>();
@@ -94,6 +103,9 @@ namespace Shiori.Editor
         private int _diffGeneration;
 
         public string SelectedPath { get; private set; }
+
+        /// <summary>Whether <see cref="SelectedPath"/> is selected in the staged list (its staged diff is shown).</summary>
+        public bool SelectedStaged { get; private set; }
 
         /// <summary>The selected commit in the log tab, or null.</summary>
         public Snapshot SelectedCommit { get; private set; }
@@ -139,16 +151,33 @@ namespace Shiori.Editor
             AddTab(TabStashes, "tab-stashes", "page-stashes", "detail.tab.stashes");
 
             // ---- changes ----
-            this.Q<Label>("files-title").text = L10n.Tr("detail.files.title");
+            _stagedTitle = this.Q<Label>("staged-title");
+            _stagedEmpty = this.Q<Label>("staged-empty");
+            _stagedEmpty.text = L10n.Tr("detail.staged.empty");
+            _stagedList = this.Q<ListView>("staged-list");
+            _stagedList.makeItem = () => MakeStageItem(staged: true);
+            _stagedList.bindItem = (element, index) => BindStageItem(element, _staged, index, staged: true);
+            _stagedList.fixedItemHeight = 20;
+            _stagedList.selectionType = SelectionType.Single;
+            _stagedList.itemsSource = _staged;
+            _stagedList.selectionChanged += selection => OnFileSelectionChanged(selection, staged: true);
+            _unstageAll = this.Q<Button>("unstage-all");
+            _unstageAll.text = L10n.Tr("detail.unstage.all");
+            _unstageAll.clicked += () => ChangeStaging(new List<FileChange>(_staged), stage: false);
+
+            _filesTitle = this.Q<Label>("files-title");
             _filesEmpty = this.Q<Label>("files-empty");
             _filesEmpty.text = L10n.Tr("detail.files.empty");
             _filesList = this.Q<ListView>("files-list");
-            _filesList.makeItem = MakeFileItem;
-            _filesList.bindItem = (element, index) => BindFileItem(element, _changes, index);
+            _filesList.makeItem = () => MakeStageItem(staged: false);
+            _filesList.bindItem = (element, index) => BindStageItem(element, _changes, index, staged: false);
             _filesList.fixedItemHeight = 20;
             _filesList.selectionType = SelectionType.Single;
             _filesList.itemsSource = _changes;
-            _filesList.selectionChanged += OnFileSelectionChanged;
+            _filesList.selectionChanged += selection => OnFileSelectionChanged(selection, staged: false);
+            _stageAll = this.Q<Button>("stage-all");
+            _stageAll.text = L10n.Tr("detail.stage.all");
+            _stageAll.clicked += StageAll;
 
             _diffTitle = this.Q<Label>("diff-title");
             _diffEmpty = this.Q<Label>("diff-empty");
@@ -308,8 +337,7 @@ namespace Shiori.Editor
                 var ct = CancellationToken.None;
                 _head = await _repo.GetHeadAsync(ct);
                 _status = await _repo.GetStatusAsync(ct);
-                _changes.Clear();
-                _changes.AddRange(_status.Changes);
+                SplitChanges();
                 var log = await _repo.GetLogAsync(LogPageSize, 0, ct);
                 _log.Clear();
                 _log.AddRange(log);
@@ -349,8 +377,7 @@ namespace Shiori.Editor
             try
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
-                _changes.Clear();
-                _changes.AddRange(_status.Changes);
+                SplitChanges();
                 SetError(null);
                 RenderFiles();
             }
@@ -406,9 +433,12 @@ namespace Shiori.Editor
             try
             {
                 string hash;
+                var stagedOnly = _staged.Count > 0;
                 using (GitActivity.Begin(L10n.Tr("detail.commit.progress")))
                 {
-                    hash = await SaveFlow.RunAsync(_session, _commitMessage.value, CancellationToken.None);
+                    hash = stagedOnly
+                        ? await SaveFlow.RunStagedAsync(_session, _commitMessage.value, CancellationToken.None)
+                        : await SaveFlow.RunAsync(_session, _commitMessage.value, CancellationToken.None);
                 }
                 if (hash != null)
                 {
@@ -519,25 +549,125 @@ namespace Shiori.Editor
 
         // ---- changes tab ----
 
+        /// <summary>Sorts the status into the staged and unstaged lists; a file changed on both sides is in both.</summary>
+        private void SplitChanges()
+        {
+            _staged.Clear();
+            _changes.Clear();
+            foreach (var change in _status.Changes)
+            {
+                if (change.IsStaged) _staged.Add(change);
+                if (change.IsUnstaged) _changes.Add(change);
+            }
+        }
+
         private void RenderFiles()
         {
+            _stagedTitle.text = L10n.Tr("detail.staged.title", _staged.Count);
+            _filesTitle.text = L10n.Tr("detail.files.title", _changes.Count);
+            _stagedEmpty.EnableInClassList(HiddenClass, _staged.Count > 0);
+            _stagedList.EnableInClassList(HiddenClass, _staged.Count == 0);
             _filesEmpty.EnableInClassList(HiddenClass, _changes.Count > 0);
+            _unstageAll.SetEnabled(_staged.Count > 0);
+            _stageAll.SetEnabled(_changes.Count > 0);
+            var stagedOnly = _staged.Count > 0;
+            _commitButton.text = L10n.Tr(stagedOnly ? "detail.commit.staged" : "detail.commit");
+            _commitButton.tooltip = L10n.Tr(stagedOnly ? "detail.commit.staged.tooltip" : "detail.commit.tooltip");
+            _stagedList.RefreshItems();
             _filesList.RefreshItems();
 
+            // Keep the selection on the same side while the file is there, else follow it to the other list.
             var wanted = _pendingSelection ?? SelectedPath;
+            var preferStaged = _pendingSelection == null && SelectedStaged;
             _pendingSelection = null;
-            var index = wanted == null ? -1 : _changes.FindIndex(c => c.Path == wanted);
-            if (index >= 0)
+            if (wanted == null || !(Select(wanted, preferStaged) || Select(wanted, !preferStaged)))
             {
-                _filesList.SetSelectionWithoutNotify(new[] { index });
-                LoadDiff(_changes[index]);
-            }
-            else
-            {
-                _filesList.ClearSelection();
+                _stagedList.SetSelectionWithoutNotify(Array.Empty<int>());
+                _filesList.SetSelectionWithoutNotify(Array.Empty<int>());
                 SelectedPath = null;
+                SelectedStaged = false;
                 ShowDiff(null, null, false);
             }
+        }
+
+        private bool Select(string path, bool staged)
+        {
+            var list = staged ? _staged : _changes;
+            var index = list.FindIndex(c => c.Path == path);
+            if (index < 0) return false;
+            (staged ? _stagedList : _filesList).SetSelectionWithoutNotify(new[] { index });
+            (staged ? _filesList : _stagedList).SetSelectionWithoutNotify(Array.Empty<int>());
+            LoadDiff(list[index], staged);
+            return true;
+        }
+
+        private VisualElement MakeStageItem(bool staged)
+        {
+            var row = MakeFileItem();
+            var button = new Button { name = "stage", text = L10n.Tr(staged ? "detail.unstage" : "detail.stage") };
+            button.tooltip = L10n.Tr(staged ? "detail.unstage.tooltip" : "detail.stage.tooltip");
+            button.AddToClassList("shiori-stage-button");
+            button.clicked += () =>
+            {
+                if (button.userData is FileChange change) ChangeStaging(new[] { change }, stage: !staged);
+            };
+            row.Add(button);
+            return row;
+        }
+
+        private static void BindStageItem(VisualElement element, List<FileChange> changes, int index, bool staged)
+        {
+            if (index < 0 || index >= changes.Count) return;
+            var change = changes[index];
+            element.Q<Label>("status").text = (staged ? change.IndexStatus : change.WorktreeStatus).ToString();
+            var path = element.Q<Label>("path");
+            // A rename lives in the index; the unstaged side is just the file at its new path.
+            path.text = staged && change.OldPath != null ? change.OldPath + " -> " + change.Path : change.Path;
+            path.tooltip = change.Kind.ToString();
+            element.Q<Button>("stage").userData = change;
+        }
+
+        private void StageAll()
+        {
+            if (_changes.Count == 0) return;
+            ChangeStaging(null, stage: true);
+        }
+
+        /// <summary>
+        /// Moves <paramref name="chosen"/> to the other list; null with <paramref name="stage"/> means
+        /// everything (<c>git add -A</c>). Only the index changes; files on disk are never touched.
+        /// </summary>
+        private async void ChangeStaging(IReadOnlyList<FileChange> chosen, bool stage)
+        {
+            if (_busy) return;
+            _busy = true;
+            try
+            {
+                var ct = CancellationToken.None;
+                if (chosen == null)
+                {
+                    await _repo.AddAllAsync(ct);
+                }
+                else
+                {
+                    var paths = StagePaths.For(chosen, stage ? _changes : _staged, stage);
+                    if (paths.Count > 0)
+                    {
+                        if (stage) await _repo.StageAsync(paths, ct);
+                        else await _repo.UnstageAsync(paths, ct);
+                    }
+                }
+                SetError(null);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshStatus();
         }
 
         private static VisualElement MakeFileItem()
@@ -563,7 +693,7 @@ namespace Shiori.Editor
             path.tooltip = change.Kind.ToString();
         }
 
-        private void OnFileSelectionChanged(IEnumerable<object> selection)
+        private void OnFileSelectionChanged(IEnumerable<object> selection, bool staged)
         {
             FileChange selected = null;
             foreach (var item in selection)
@@ -573,27 +703,33 @@ namespace Shiori.Editor
             }
             if (selected == null)
             {
+                // Selecting in the other list clears this one without notifying, so this is a real deselect.
                 SelectedPath = null;
+                SelectedStaged = false;
                 ShowDiff(null, null, false);
             }
             else
             {
-                LoadDiff(selected);
+                (staged ? _filesList : _stagedList).SetSelectionWithoutNotify(Array.Empty<int>());
+                LoadDiff(selected, staged);
                 AssetNavigator.Reveal(selected.Path);
             }
             SelectionChanged?.Invoke(SelectedPath);
         }
 
-        private async void LoadDiff(FileChange change)
+        private async void LoadDiff(FileChange change, bool staged)
         {
             SelectedPath = change.Path;
+            SelectedStaged = staged;
             _diffChange = change;
+            _diffStaged = staged;
             var generation = ++_diffGeneration;
             _diffTitle.text = change.Path;
             try
             {
-                var untracked = change.Kind == ChangeKind.Untracked;
-                var text = await _repo.GetDiffAsync(change.Path, untracked, CancellationToken.None);
+                var text = staged
+                    ? await _repo.GetStagedDiffAsync(change.Path, change.OldPath, CancellationToken.None)
+                    : await _repo.GetUnstagedDiffAsync(change.Path, change.Kind == ChangeKind.Untracked, CancellationToken.None);
                 if (generation != _diffGeneration) return;
                 var lines = WithoutHeaders(DiffParser.Parse(text));
                 var truncated = lines.Count > MaxDiffLines;
@@ -614,7 +750,7 @@ namespace Shiori.Editor
             _unityRows.Clear();
             _unityRows.Add(new UnityDiffRow(UnityDiffRowKind.Message, UnityObjectChangeKind.Changed, L10n.Tr("detail.unity.loading")));
             ShowUnityList(true);
-            var rows = await UnityDiffPresenter.LoadWorkingTreeAsync(_repo, _session.ProjectRoot, change.Path, CancellationToken.None);
+            var rows = await UnityDiffPresenter.LoadAsync(_repo, _session.ProjectRoot, change, _diffStaged, CancellationToken.None);
             if (generation != _diffGeneration) return;
             _unityRows.Clear();
             _unityRows.AddRange(rows);
