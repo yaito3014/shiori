@@ -10,12 +10,19 @@ Each release is described for the people who use it. The developer-level detail 
 - **詳細モードで、プレハブとマテリアルの変更を Unity の言葉で見られるようになりました。**
   どの GameObject のどのコンポーネントの、どのプロパティが、どう変わったか（例: `m_LocalPosition.y: 1.5 → 1.75`）を並べます。
   テクスチャなどの参照はアセットのパスで表示します。「テキスト」に切り替えると、今までの差分表示に戻ります。
+- **詳細モードで、ファイルごとにステージ / ステージから外せるようになりました。**
+  「変更」タブが「ステージ済み」と「未ステージ」に分かれ、ステージしたものだけをコミットできます。
+  アセットと .meta は一緒にステージされるので、片方だけコミットしてしまうことはありません。
+  何もステージしていなければ、これまでどおりすべての変更をコミットします。
 
 ### English
 
 - **Detail mode shows prefab and material changes in Unity terms**: which GameObject, component and property changed and
   how (for example `m_LocalPosition.y: 1.5 → 1.75`), with referenced assets shown by path. 「テキスト」 switches back to
   the text diff.
+- **Detail mode can stage and unstage files**: the changes tab is split into staged and unstaged lists, and only what
+  is staged is committed. An asset and its .meta are staged together, so one is never committed without the other.
+  With nothing staged, commit still takes every change as before.
 
 ## [0.3.0] - 2026-10-10
 
