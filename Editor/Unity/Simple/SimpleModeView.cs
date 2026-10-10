@@ -46,11 +46,6 @@ namespace Shiori.Editor
         private readonly Button _receiveButton;
         private SendStatus _sendStatus;
         private RemoteComparison _comparison;
-
-        /// <summary>When the last background check ran, per editor session; checks are at most this frequent.</summary>
-        private static DateTime _lastBackgroundCheck = DateTime.MinValue;
-        internal static readonly TimeSpan BackgroundCheckInterval = TimeSpan.FromMinutes(5);
-        private bool _checking;
         private readonly Foldout _asidePanel;
         private readonly VisualElement _asideList;
         private readonly List<SetAsideChange> _setAside = new List<SetAsideChange>();
@@ -277,23 +272,11 @@ namespace Shiori.Editor
         /// </summary>
         private async void CheckRemoteInBackground()
         {
-            if (_checking || _sendStatus == null || !_sendStatus.HasRemote) return;
-            if (DateTime.UtcNow - _lastBackgroundCheck < BackgroundCheckInterval) return;
-            _lastBackgroundCheck = DateTime.UtcNow;
-            _checking = true;
-            try
-            {
-                _comparison = await ReceiveRunner.CheckAsync(_repo, CancellationToken.None);
-                RenderSend();
-            }
-            catch (Exception)
-            {
-                // Offline, signed out or slow: say nothing; 受信 itself will report the real problem.
-            }
-            finally
-            {
-                _checking = false;
-            }
+            if (_sendStatus == null || !_sendStatus.HasRemote) return;
+            var comparison = await RemoteWatch.CheckIfDueAsync(_repo);
+            if (comparison == null) return;
+            _comparison = comparison;
+            RenderSend();
         }
 
         /// <summary>Cheaper refresh for project-changed notifications: working tree and meta only.</summary>
@@ -423,32 +406,18 @@ namespace Shiori.Editor
         private async void Save()
         {
             if (_busy || _status == null) return;
-            // Inspector edits are not on disk yet; git must see what the user sees.
-            UnitySaver.SaveForSnapshot();
             _busy = true;
             SetNotice(null);
             _saveButton.SetEnabled(false);
             try
             {
+                string hash;
                 using (GitActivity.Begin(L10n.Tr("simple.save.progress")))
                 {
-                    var ct = CancellationToken.None;
-                    await _session.RunBeforeSaveAsync(ct);
-                    await _repo.AddAllAsync(ct);
-                    var staged = await _repo.GetStatusAsync(ct);
-                    string hash = null;
-                    if (staged.HasChanges)
-                    {
-                        var message = SnapshotMessage.Resolve(_message.value, staged.Stats);
-                        hash = await _repo.CommitAsync(message, ct);
-                        _message.value = string.Empty;
-                    }
-                    else
-                    {
-                        SetNotice(L10n.Tr("simple.save.nochanges"));
-                    }
-                    await _session.RunAfterSaveAsync(hash, ct);
+                    hash = await SaveFlow.RunAsync(_session, _message.value, CancellationToken.None);
                 }
+                if (hash != null) _message.value = string.Empty;
+                else SetNotice(L10n.Tr("simple.save.nochanges"));
                 SetError(null);
             }
             catch (Exception ex)
@@ -554,37 +523,16 @@ namespace Shiori.Editor
             if (index < 0) return;
             var target = _snapshots[index];
 
-            // In-memory edits are invisible to git and would be written over the restored files later;
-            // flush them first (scenes with a prompt, assets silently).
-            if (!UnitySaver.SaveForRestoreOrCancel()) return;
-
             _busy = true;
             SetNotice(null);
             try
             {
-                var ct = CancellationToken.None;
-                _status = await _repo.GetStatusAsync(ct);
-                RenderSaveStatus();
-
-                string warning = null;
-                if (_session.Extensions.Count > 0)
-                {
-                    var preview = await _session.PreviewRestoreAsync(target, ct);
-                    warning = await _session.GetRestoreWarningAsync(preview, ct);
-                }
-                var mode = AskRestoreMode(target, _status.HasChanges, warning);
-                if (mode == null) return;
-
-                RestoreResult result;
-                using (GitActivity.Begin(L10n.Tr("restore.progress")))
-                {
-                    result = await RestoreOperation.RunAsync(_repo, target.Hash, target.Message, mode.Value, _message.value, ct);
-                    await _session.RunAfterRestoreAsync(result, ct);
-                }
-                if (mode.Value == RestoreMode.SaveFirst && result.SavedCommitHash != null) _message.value = string.Empty;
+                var outcome = await RestoreFlow.RunAsync(_session, target, _message.value, CancellationToken.None);
+                if (outcome == null) return;
+                if (outcome.Mode == RestoreMode.SaveFirst && outcome.Result.SavedCommitHash != null) _message.value = string.Empty;
 
                 SetError(null);
-                SetNotice(DescribeRestore(target, result));
+                SetNotice(RestoreFlow.Describe(target, outcome.Result));
             }
             catch (Exception ex)
             {
@@ -597,48 +545,6 @@ namespace Shiori.Editor
             RefreshAll();
         }
 
-        /// <summary>The F4 confirmation. Extension warnings (if any) follow the main text. Returns null when the user cancels.</summary>
-        private static RestoreMode? AskRestoreMode(Snapshot target, bool hasChanges, string warning)
-        {
-            var title = L10n.Tr("restore.dialog.title");
-            var when = RelativeTime.Format(target.Time, DateTimeOffset.Now);
-            if (hasChanges)
-            {
-                var choice = EditorUtility.DisplayDialogComplex(
-                    title,
-                    WithWarning(L10n.Tr("restore.dialog.dirty", target.Message, when), warning),
-                    L10n.Tr("restore.dialog.savefirst"),
-                    L10n.Tr("restore.dialog.cancel"),
-                    L10n.Tr("restore.dialog.discard"));
-                switch (choice)
-                {
-                    case 0: return RestoreMode.SaveFirst;
-                    case 2: return RestoreMode.StashFirst;
-                    default: return null;
-                }
-            }
-
-            var ok = EditorUtility.DisplayDialog(
-                title,
-                WithWarning(L10n.Tr("restore.dialog.clean", target.Message, when), warning),
-                L10n.Tr("restore.dialog.ok"),
-                L10n.Tr("restore.dialog.cancel"));
-            return ok ? RestoreMode.StashFirst : (RestoreMode?)null;
-        }
-
-        internal static string WithWarning(string text, string warning)
-        {
-            return string.IsNullOrEmpty(warning) ? text : text + "\n\n" + warning;
-        }
-
-        private static string DescribeRestore(Snapshot target, RestoreResult result)
-        {
-            var sb = new StringBuilder();
-            sb.Append(result.ChangedAnything ? L10n.Tr("restore.done", target.Message) : L10n.Tr("restore.nochange", target.Message));
-            if (result.StashHash != null) sb.Append('\n').Append(L10n.Tr("restore.stashed"));
-            if (result.TouchedProjectSettings) sb.Append('\n').Append(L10n.Tr("restore.projectsettings"));
-            return sb.ToString();
-        }
 
         // ---- 送信 ----
 
@@ -689,7 +595,7 @@ namespace Shiori.Editor
                     result = await ReceiveOperation.RunAsync(_repo, ct);
                 }
                 // A fetch just ran, so the next background check can wait.
-                _lastBackgroundCheck = DateTime.UtcNow;
+                RemoteWatch.MarkFetched();
                 SetError(null);
                 SetNotice(RemoteText.Describe(result));
             }
