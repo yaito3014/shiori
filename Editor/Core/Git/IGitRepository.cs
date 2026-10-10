@@ -26,7 +26,19 @@ namespace Shiori
         /// <summary><c>git add -A</c>.</summary>
         Task AddAllAsync(CancellationToken cancellationToken);
 
-        /// <summary><c>git commit -m</c>. Returns the new commit hash.</summary>
+        /// <summary>
+        /// <c>git add -A</c> of these paths only, so new, changed and deleted files are staged alike.
+        /// Paths are literal (no wildcards), repository-relative.
+        /// </summary>
+        Task StageAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git reset -q -- &lt;paths&gt;</c>: puts these paths in the index back to HEAD (or removes them when
+        /// HEAD does not have them). The working tree is not touched, so nothing is lost.
+        /// </summary>
+        Task UnstageAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken);
+
+        /// <summary><c>git commit -m</c> of what is staged. Returns the new commit hash.</summary>
         Task<string> CommitAsync(string message, CancellationToken cancellationToken);
 
         /// <summary>HEAD hash, or null when the repository has no commits.</summary>
@@ -43,6 +55,18 @@ namespace Shiori
         /// whole file is shown as added. Returns an empty string when there is no difference.
         /// </summary>
         Task<string> GetDiffAsync(string path, bool untracked, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Unified diff text of what is staged for <paramref name="path"/> (HEAD against the index). Give
+        /// <paramref name="oldPath"/> for a staged rename so it is shown as one. Empty when nothing is staged.
+        /// </summary>
+        Task<string> GetStagedDiffAsync(string path, string oldPath, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// Unified diff text of what is not staged for <paramref name="path"/> (the index against the working
+        /// tree). For an untracked file the whole file is shown as added.
+        /// </summary>
+        Task<string> GetUnstagedDiffAsync(string path, bool untracked, CancellationToken cancellationToken);
 
         /// <summary>
         /// <c>git read-tree -u --reset &lt;hash&gt;</c>: makes the index and tracked files match the commit
@@ -71,6 +95,7 @@ namespace Shiori
         /// <summary>
         /// Text of <paramref name="path"/> as stored in <paramref name="revision"/> (UTF-8), or null when the
         /// file does not exist there (or is a folder). <paramref name="path"/> is repository-relative.
+        /// The revision <c>:0</c> reads the staged version from the index.
         /// </summary>
         Task<string> ReadFileAtAsync(string revision, string path, CancellationToken cancellationToken);
 

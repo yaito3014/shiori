@@ -49,6 +49,37 @@ namespace Shiori
             await RunAsync(cancellationToken, "add", "-A").ConfigureAwait(false);
         }
 
+        /// <summary>Paths per git call, keeping the command line well under the Windows limit.</summary>
+        internal const int PathBatchSize = 100;
+
+        public async Task StageAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken)
+        {
+            await RunForPathsAsync(paths, cancellationToken, "add", "-A").ConfigureAwait(false);
+        }
+
+        public async Task UnstageAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken)
+        {
+            await RunForPathsAsync(paths, cancellationToken, "reset", "-q").ConfigureAwait(false);
+        }
+
+        /// <summary>Runs <c>git --literal-pathspecs &lt;command&gt; -- &lt;paths&gt;</c> in batches, so '*' or ':' in a file name is not a pattern.</summary>
+        private async Task RunForPathsAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken, params string[] command)
+        {
+            if (paths == null) throw new ArgumentNullException(nameof(paths));
+            for (var start = 0; start < paths.Count; start += PathBatchSize)
+            {
+                var args = new List<string> { "--literal-pathspecs" };
+                args.AddRange(command);
+                args.Add("--");
+                for (var i = start; i < paths.Count && i < start + PathBatchSize; i++)
+                {
+                    if (string.IsNullOrWhiteSpace(paths[i])) throw new ArgumentException("paths must not be empty", nameof(paths));
+                    args.Add(paths[i].Replace('\\', '/'));
+                }
+                await RunAsync(cancellationToken, args.ToArray()).ConfigureAwait(false);
+            }
+        }
+
         public async Task<string> CommitAsync(string message, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(message)) throw new ArgumentException("commit message is required", nameof(message));
@@ -104,6 +135,25 @@ namespace Shiori
                     ? await RunAsync(cancellationToken, "diff", "--no-color", "--no-ext-diff", "--cached", "--", path).ConfigureAwait(false)
                     : await RunAsync(cancellationToken, "diff", "--no-color", "--no-ext-diff", "HEAD", "--", path).ConfigureAwait(false);
             }
+            return result.Stdout;
+        }
+
+        public async Task<string> GetStagedDiffAsync(string path, string oldPath, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("path is required", nameof(path));
+            // --cached compares with HEAD, or with nothing before the first commit.
+            var args = new List<string> { "--literal-pathspecs", "diff", "--no-color", "--no-ext-diff", "--cached", "-M", "--" };
+            if (!string.IsNullOrEmpty(oldPath)) args.Add(oldPath);
+            args.Add(path);
+            var result = await RunAsync(cancellationToken, args.ToArray()).ConfigureAwait(false);
+            return result.Stdout;
+        }
+
+        public async Task<string> GetUnstagedDiffAsync(string path, bool untracked, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("path is required", nameof(path));
+            if (untracked) return await GetDiffAsync(path, true, cancellationToken).ConfigureAwait(false);
+            var result = await RunAsync(cancellationToken, "--literal-pathspecs", "diff", "--no-color", "--no-ext-diff", "--", path).ConfigureAwait(false);
             return result.Stdout;
         }
 

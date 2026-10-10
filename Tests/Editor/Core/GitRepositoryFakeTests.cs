@@ -38,6 +38,27 @@ namespace Shiori.Tests
         }
 
         [Test]
+        public void StageAndUnstage_UseLiteralPathspecs_InBatches()
+        {
+            var paths = new string[GitRepository.PathBatchSize + 5];
+            for (var i = 0; i < paths.Length; i++) paths[i] = "Assets\\f" + i + ".txt";
+
+            _repo.StageAsync(paths, CancellationToken.None).GetAwaiter().GetResult();
+            Assert.That(_runner.Calls.Count, Is.EqualTo(2));
+            Assert.That(_runner.Calls[0].Joined, Does.StartWith("--literal-pathspecs add -A -- Assets/f0.txt Assets/f1.txt"));
+            Assert.That(_runner.Calls[0].Args.Count, Is.EqualTo(4 + GitRepository.PathBatchSize));
+            Assert.That(_runner.Calls[1].Args.Count, Is.EqualTo(4 + 5));
+
+            _runner.Calls.Clear();
+            _repo.UnstageAsync(new[] { "Assets/a.txt" }, CancellationToken.None).GetAwaiter().GetResult();
+            Assert.That(_runner.Calls[0].Joined, Is.EqualTo("--literal-pathspecs reset -q -- Assets/a.txt"));
+
+            _runner.Calls.Clear();
+            _repo.StageAsync(new string[0], CancellationToken.None).GetAwaiter().GetResult();
+            Assert.That(_runner.Calls, Is.Empty, "nothing to stage runs nothing");
+        }
+
+        [Test]
         public void Commit_RejectsEmptyMessage()
         {
             Assert.Throws<ArgumentException>(() => _repo.CommitAsync("  ", CancellationToken.None).GetAwaiter().GetResult());

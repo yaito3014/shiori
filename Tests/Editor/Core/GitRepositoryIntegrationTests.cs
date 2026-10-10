@@ -182,6 +182,87 @@ namespace Shiori.Tests
             Assert.That(unchanged, Is.Empty);
         }
 
+        private FileChange StatusOf(string path)
+        {
+            return _repo.GetStatusAsync(None).GetAwaiter().GetResult().Changes.SingleOrDefault(c => c.Path == path);
+        }
+
+        [Test]
+        public void StageAndUnstage_MoveOnlyThosePaths_AndNeverTouchTheFiles()
+        {
+            InitWithIdentity();
+            _dir.WriteText("Assets/t.txt", "v1\n");
+            _dir.WriteText("Assets/gone.txt", "bye\n");
+            Save("first");
+            _dir.WriteText("Assets/t.txt", "v2\n");
+            System.IO.File.Delete(_dir.File("Assets/gone.txt"));
+            _dir.WriteText("Assets/[x].txt", "brackets are a pattern unless literal\n");
+            _dir.WriteText("Assets/x.txt", "must stay unstaged\n");
+
+            _repo.StageAsync(new[] { "Assets/t.txt", "Assets/gone.txt", "Assets/[x].txt" }, None).GetAwaiter().GetResult();
+            Assert.That(StatusOf("Assets/t.txt").IsStaged, Is.True);
+            Assert.That(StatusOf("Assets/gone.txt").IndexStatus, Is.EqualTo('D'), "a deletion is staged too");
+            Assert.That(StatusOf("Assets/[x].txt").IsStaged, Is.True);
+            Assert.That(StatusOf("Assets/x.txt").Kind, Is.EqualTo(ChangeKind.Untracked), "[x] is literal, not a pattern matching x.txt");
+
+            _repo.UnstageAsync(new[] { "Assets/t.txt", "Assets/gone.txt", "Assets/[x].txt" }, None).GetAwaiter().GetResult();
+            Assert.That(StatusOf("Assets/t.txt").IsStaged, Is.False);
+            Assert.That(StatusOf("Assets/gone.txt").IsStaged, Is.False);
+            Assert.That(StatusOf("Assets/[x].txt").Kind, Is.EqualTo(ChangeKind.Untracked));
+            Assert.That(_dir.ReadText("Assets/t.txt"), Is.EqualTo("v2\n"), "unstaging keeps the file as it is");
+        }
+
+        [Test]
+        public void Unstage_WorksBeforeTheFirstCommit()
+        {
+            InitWithIdentity();
+            _dir.WriteText("Assets/a.txt", "a\n");
+            _repo.StageAsync(new[] { "Assets/a.txt" }, None).GetAwaiter().GetResult();
+            Assert.That(StatusOf("Assets/a.txt").IndexStatus, Is.EqualTo('A'));
+
+            _repo.UnstageAsync(new[] { "Assets/a.txt" }, None).GetAwaiter().GetResult();
+            Assert.That(StatusOf("Assets/a.txt").Kind, Is.EqualTo(ChangeKind.Untracked));
+        }
+
+        [Test]
+        public void StagedAndUnstagedDiffs_ShowEachSide_AndTheIndexCanBeRead()
+        {
+            InitWithIdentity();
+            _dir.WriteText("Assets/t.txt", "v1\n");
+            Save("first");
+            _dir.WriteText("Assets/t.txt", "v2\n");
+            _repo.StageAsync(new[] { "Assets/t.txt" }, None).GetAwaiter().GetResult();
+            _dir.WriteText("Assets/t.txt", "v3\n");
+            _dir.WriteText("Assets/u.txt", "new\n");
+
+            var staged = _repo.GetStagedDiffAsync("Assets/t.txt", null, None).GetAwaiter().GetResult();
+            Assert.That(staged, Does.Contain("-v1").And.Contain("+v2").And.Not.Contain("v3"));
+            var unstaged = _repo.GetUnstagedDiffAsync("Assets/t.txt", false, None).GetAwaiter().GetResult();
+            Assert.That(unstaged, Does.Contain("-v2").And.Contain("+v3").And.Not.Contain("v1"));
+            Assert.That(_repo.GetUnstagedDiffAsync("Assets/u.txt", true, None).GetAwaiter().GetResult(), Does.Contain("+new"));
+            Assert.That(_repo.ReadFileAtAsync(":0", "Assets/t.txt", None).GetAwaiter().GetResult(), Is.EqualTo("v2\n"));
+            Assert.That(_repo.ReadFileAtAsync(":0", "Assets/u.txt", None).GetAwaiter().GetResult(), Is.Null);
+        }
+
+        [Test]
+        public void StagedDiff_ShowsARenameWithItsOldPath()
+        {
+            InitWithIdentity();
+            _dir.WriteText("Assets/old.txt", "same content\nacross the rename\n");
+            Save("first");
+            System.IO.File.Move(_dir.File("Assets/old.txt"), _dir.File("Assets/new.txt"));
+            _repo.StageAsync(new[] { "Assets/old.txt", "Assets/new.txt" }, None).GetAwaiter().GetResult();
+            var rename = StatusOf("Assets/new.txt");
+            Assert.That(rename.OldPath, Is.EqualTo("Assets/old.txt"));
+
+            var diff = _repo.GetStagedDiffAsync(rename.Path, rename.OldPath, None).GetAwaiter().GetResult();
+            Assert.That(diff, Does.Contain("rename from Assets/old.txt"));
+
+            _repo.UnstageAsync(new[] { "Assets/new.txt", "Assets/old.txt" }, None).GetAwaiter().GetResult();
+            Assert.That(StatusOf("Assets/old.txt").WorktreeStatus, Is.EqualTo('D'), "the old path is back in the index, deleted on disk");
+            Assert.That(StatusOf("Assets/new.txt").Kind, Is.EqualTo(ChangeKind.Untracked));
+        }
+
         [Test]
         public void ReadTree_RestoresTrackedFilesWithoutMovingHead()
         {

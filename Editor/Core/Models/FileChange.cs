@@ -29,6 +29,12 @@ namespace Shiori
 
         public bool IsMeta => Path.EndsWith(".meta", StringComparison.OrdinalIgnoreCase);
 
+        /// <summary>The index differs from HEAD: something of this path is staged.</summary>
+        public bool IsStaged => IndexStatus != '.' && IndexStatus != '?';
+
+        /// <summary>The working tree differs from the index, including untracked files.</summary>
+        public bool IsUnstaged => WorktreeStatus != '.';
+
         public override string ToString()
         {
             return OldPath == null ? $"{Kind} {Path}" : $"{Kind} {OldPath} -> {Path}";
