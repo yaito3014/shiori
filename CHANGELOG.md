@@ -12,7 +12,7 @@ Each release is described for the people who use it. The developer-level detail 
   テクスチャなどの参照はアセットのパスで表示します。「テキスト」に切り替えると、今までの差分表示に戻ります。
 - **詳細モードで、ファイルごとにステージ / ステージから外せるようになりました。**
   「変更」タブが「ステージ済み」と「未ステージ」に分かれ、ステージしたものだけをコミットできます。
-  アセットと .meta は一緒にステージされるので、片方だけコミットしてしまうことはありません。
+  アセットと .meta は 1 行にまとまり、一緒にステージされるので、片方だけコミットしてしまうことはありません。
   何もステージしていなければ、これまでどおりすべての変更をコミットします。
 
 ### English
@@ -21,7 +21,7 @@ Each release is described for the people who use it. The developer-level detail 
   how (for example `m_LocalPosition.y: 1.5 → 1.75`), with referenced assets shown by path. 「テキスト」 switches back to
   the text diff.
 - **Detail mode can stage and unstage files**: the changes tab is split into staged and unstaged lists, and only what
-  is staged is committed. An asset and its .meta are staged together, so one is never committed without the other.
+  is staged is committed. An asset and its .meta share one row and are staged together, so one is never committed without the other.
   With nothing staged, commit still takes every change as before.
 
 ## [0.3.0] - 2026-10-10

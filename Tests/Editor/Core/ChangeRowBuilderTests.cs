@@ -29,6 +29,10 @@ namespace Shiori.Tests
             Assert.That(rows[1].DisplayPath, Is.EqualTo("Textures/a b.png"));
             Assert.That(rows[1].Kind, Is.EqualTo(ChangeKind.Added));
             Assert.That(rows[1].HasMeta, Is.True);
+            Assert.That(rows[1].Asset.Path, Is.EqualTo("Assets/Textures/a b.png"));
+            Assert.That(rows[1].Meta.Path, Is.EqualTo("Assets/Textures/a b.png.meta"));
+            Assert.That(rows[1].Primary, Is.SameAs(rows[1].Asset));
+            Assert.That(rows[1].Files.Select(f => f.Path), Is.EqualTo(new[] { "Assets/Textures/a b.png", "Assets/Textures/a b.png.meta" }));
         }
 
         [Test]
@@ -41,6 +45,8 @@ namespace Shiori.Tests
             Assert.That(rows[0].MetaOnly, Is.True);
             Assert.That(rows[0].HasMeta, Is.True);
             Assert.That(rows[0].Kind, Is.EqualTo(ChangeKind.Added));
+            Assert.That(rows[0].Asset, Is.Null);
+            Assert.That(rows[0].Primary.Path, Is.EqualTo("Assets/NewFolder.meta"));
         }
 
         [Test]

@@ -20,13 +20,34 @@ namespace Shiori
         /// <summary>True when only the .meta changed (for example a folder's meta) and the asset itself is not listed.</summary>
         public bool MetaOnly { get; }
 
-        public ChangeRow(string path, string displayPath, ChangeKind kind, bool hasMeta, bool metaOnly)
+        /// <summary>The asset's own change, or null when only the .meta changed.</summary>
+        public FileChange Asset { get; }
+
+        /// <summary>The .meta's change, or null when the .meta did not change.</summary>
+        public FileChange Meta { get; }
+
+        /// <summary>The file the row stands for: the asset, or the .meta when only it changed.</summary>
+        public FileChange Primary => Asset ?? Meta;
+
+        public ChangeRow(string path, string displayPath, ChangeKind kind, bool hasMeta, bool metaOnly, FileChange asset = null, FileChange meta = null)
         {
             Path = path ?? throw new ArgumentNullException(nameof(path));
             DisplayPath = displayPath ?? path;
             Kind = kind;
             HasMeta = hasMeta;
             MetaOnly = metaOnly;
+            Asset = asset;
+            Meta = meta;
+        }
+
+        /// <summary>The asset's and the .meta's changes, whichever exist.</summary>
+        public IEnumerable<FileChange> Files
+        {
+            get
+            {
+                if (Asset != null) yield return Asset;
+                if (Meta != null) yield return Meta;
+            }
         }
     }
 
@@ -68,7 +89,7 @@ namespace Shiori
                 var hasAsset = assets.TryGetValue(key, out var asset);
                 var hasMeta = metas.TryGetValue(key, out var meta);
                 var kind = hasAsset ? asset.Kind : meta.Kind;
-                rows.Add(new ChangeRow(key, ToDisplayPath(key), kind, hasMeta, !hasAsset));
+                rows.Add(new ChangeRow(key, ToDisplayPath(key), kind, hasMeta, !hasAsset, asset, meta));
             }
             return rows;
         }

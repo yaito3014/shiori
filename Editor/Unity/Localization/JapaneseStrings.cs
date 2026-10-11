@@ -254,6 +254,8 @@ namespace Shiori.Editor
             ["detail.files.empty"] = "未ステージの変更はありません",
             ["detail.staged.title"] = "ステージ済み（{0}）",
             ["detail.staged.empty"] = "ステージした変更はありません。このままコミットすると、すべての変更をコミットします。",
+            ["detail.files.meta"] = "+ .meta",
+            ["detail.files.meta.tooltip"] = ".meta も変わっています。ステージもコミットも一緒に行います。差分は下にまとめて出します。",
             ["detail.stage"] = "+",
             ["detail.stage.tooltip"] = "ステージします。対になる .meta も一緒にステージします。",
             ["detail.unstage"] = "−",

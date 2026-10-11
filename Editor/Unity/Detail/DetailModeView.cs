@@ -87,6 +87,10 @@ namespace Shiori.Editor
         /// <summary>Unstaged changes (the working tree against the index), untracked files included.</summary>
         private readonly List<FileChange> _changes = new List<FileChange>();
         private readonly List<FileChange> _staged = new List<FileChange>();
+
+        /// <summary>What the two lists show: one row per asset with its .meta folded in, as in simple mode.</summary>
+        private readonly List<ChangeRow> _unstagedRows = new List<ChangeRow>();
+        private readonly List<ChangeRow> _stagedRows = new List<ChangeRow>();
         private readonly List<DiffLine> _lines = new List<DiffLine>();
         private readonly List<Snapshot> _log = new List<Snapshot>();
         private readonly List<FileChange> _commitChanges = new List<FileChange>();
@@ -156,24 +160,24 @@ namespace Shiori.Editor
             _stagedEmpty.text = L10n.Tr("detail.staged.empty");
             _stagedList = this.Q<ListView>("staged-list");
             _stagedList.makeItem = () => MakeStageItem(staged: true);
-            _stagedList.bindItem = (element, index) => BindStageItem(element, _staged, index, staged: true);
+            _stagedList.bindItem = (element, index) => BindStageItem(element, _stagedRows, index, staged: true);
             _stagedList.fixedItemHeight = 20;
             _stagedList.selectionType = SelectionType.Single;
-            _stagedList.itemsSource = _staged;
+            _stagedList.itemsSource = _stagedRows;
             _stagedList.selectionChanged += selection => OnFileSelectionChanged(selection, staged: true);
             _unstageAll = this.Q<Button>("unstage-all");
             _unstageAll.text = L10n.Tr("detail.unstage.all");
-            _unstageAll.clicked += () => ChangeStaging(new List<FileChange>(_staged), stage: false);
+            _unstageAll.clicked += () => ChangeStaging(new List<ChangeRow>(_stagedRows), stage: false);
 
             _filesTitle = this.Q<Label>("files-title");
             _filesEmpty = this.Q<Label>("files-empty");
             _filesEmpty.text = L10n.Tr("detail.files.empty");
             _filesList = this.Q<ListView>("files-list");
             _filesList.makeItem = () => MakeStageItem(staged: false);
-            _filesList.bindItem = (element, index) => BindStageItem(element, _changes, index, staged: false);
+            _filesList.bindItem = (element, index) => BindStageItem(element, _unstagedRows, index, staged: false);
             _filesList.fixedItemHeight = 20;
             _filesList.selectionType = SelectionType.Single;
-            _filesList.itemsSource = _changes;
+            _filesList.itemsSource = _unstagedRows;
             _filesList.selectionChanged += selection => OnFileSelectionChanged(selection, staged: false);
             _stageAll = this.Q<Button>("stage-all");
             _stageAll.text = L10n.Tr("detail.stage.all");
@@ -559,12 +563,16 @@ namespace Shiori.Editor
                 if (change.IsStaged) _staged.Add(change);
                 if (change.IsUnstaged) _changes.Add(change);
             }
+            _stagedRows.Clear();
+            _stagedRows.AddRange(ChangeRowBuilder.Build(_staged));
+            _unstagedRows.Clear();
+            _unstagedRows.AddRange(ChangeRowBuilder.Build(_changes));
         }
 
         private void RenderFiles()
         {
-            _stagedTitle.text = L10n.Tr("detail.staged.title", _staged.Count);
-            _filesTitle.text = L10n.Tr("detail.files.title", _changes.Count);
+            _stagedTitle.text = L10n.Tr("detail.staged.title", _stagedRows.Count);
+            _filesTitle.text = L10n.Tr("detail.files.title", _unstagedRows.Count);
             _stagedEmpty.EnableInClassList(HiddenClass, _staged.Count > 0);
             _stagedList.EnableInClassList(HiddenClass, _staged.Count == 0);
             _filesEmpty.EnableInClassList(HiddenClass, _changes.Count > 0);
@@ -592,8 +600,8 @@ namespace Shiori.Editor
 
         private bool Select(string path, bool staged)
         {
-            var list = staged ? _staged : _changes;
-            var index = list.FindIndex(c => c.Path == path);
+            var list = staged ? _stagedRows : _unstagedRows;
+            var index = list.FindIndex(r => r.Path == path || r.Primary.Path == path);
             if (index < 0) return false;
             (staged ? _stagedList : _filesList).SetSelectionWithoutNotify(new[] { index });
             (staged ? _filesList : _stagedList).SetSelectionWithoutNotify(Array.Empty<int>());
@@ -604,27 +612,34 @@ namespace Shiori.Editor
         private VisualElement MakeStageItem(bool staged)
         {
             var row = MakeFileItem();
+            var meta = new Label(L10n.Tr("detail.files.meta")) { name = "meta" };
+            meta.tooltip = L10n.Tr("detail.files.meta.tooltip");
+            meta.AddToClassList("shiori-file-meta");
+            row.Add(meta);
             var button = new Button { name = "stage", text = L10n.Tr(staged ? "detail.unstage" : "detail.stage") };
             button.tooltip = L10n.Tr(staged ? "detail.unstage.tooltip" : "detail.stage.tooltip");
             button.AddToClassList("shiori-stage-button");
             button.clicked += () =>
             {
-                if (button.userData is FileChange change) ChangeStaging(new[] { change }, stage: !staged);
+                if (button.userData is ChangeRow row) ChangeStaging(new[] { row }, stage: !staged);
             };
             row.Add(button);
             return row;
         }
 
-        private static void BindStageItem(VisualElement element, List<FileChange> changes, int index, bool staged)
+        private static void BindStageItem(VisualElement element, List<ChangeRow> rows, int index, bool staged)
         {
-            if (index < 0 || index >= changes.Count) return;
-            var change = changes[index];
+            if (index < 0 || index >= rows.Count) return;
+            var row = rows[index];
+            var change = row.Primary;
             element.Q<Label>("status").text = (staged ? change.IndexStatus : change.WorktreeStatus).ToString();
             var path = element.Q<Label>("path");
             // A rename lives in the index; the unstaged side is just the file at its new path.
             path.text = staged && change.OldPath != null ? change.OldPath + " -> " + change.Path : change.Path;
             path.tooltip = change.Kind.ToString();
-            element.Q<Button>("stage").userData = change;
+            var meta = element.Q<Label>("meta");
+            meta.EnableInClassList(HiddenClass, row.Asset == null || row.Meta == null);
+            element.Q<Button>("stage").userData = row;
         }
 
         private void StageAll()
@@ -637,7 +652,7 @@ namespace Shiori.Editor
         /// Moves <paramref name="chosen"/> to the other list; null with <paramref name="stage"/> means
         /// everything (<c>git add -A</c>). Only the index changes; files on disk are never touched.
         /// </summary>
-        private async void ChangeStaging(IReadOnlyList<FileChange> chosen, bool stage)
+        private async void ChangeStaging(IReadOnlyList<ChangeRow> chosen, bool stage)
         {
             if (_busy) return;
             _busy = true;
@@ -650,7 +665,9 @@ namespace Shiori.Editor
                 }
                 else
                 {
-                    var paths = StagePaths.For(chosen, stage ? _changes : _staged, stage);
+                    var files = new List<FileChange>();
+                    foreach (var row in chosen) files.AddRange(row.Files);
+                    var paths = StagePaths.For(files, stage ? _changes : _staged, stage);
                     if (paths.Count > 0)
                     {
                         if (stage) await _repo.StageAsync(paths, ct);
@@ -695,10 +712,10 @@ namespace Shiori.Editor
 
         private void OnFileSelectionChanged(IEnumerable<object> selection, bool staged)
         {
-            FileChange selected = null;
+            ChangeRow selected = null;
             foreach (var item in selection)
             {
-                selected = item as FileChange;
+                selected = item as ChangeRow;
                 break;
             }
             if (selected == null)
@@ -712,13 +729,14 @@ namespace Shiori.Editor
             {
                 (staged ? _filesList : _stagedList).SetSelectionWithoutNotify(Array.Empty<int>());
                 LoadDiff(selected, staged);
-                AssetNavigator.Reveal(selected.Path);
+                AssetNavigator.Reveal(selected.Primary.Path);
             }
             SelectionChanged?.Invoke(SelectedPath);
         }
 
-        private async void LoadDiff(FileChange change, bool staged)
+        private async void LoadDiff(ChangeRow row, bool staged)
         {
+            var change = row.Primary;
             SelectedPath = change.Path;
             SelectedStaged = staged;
             _diffChange = change;
@@ -727,11 +745,14 @@ namespace Shiori.Editor
             _diffTitle.text = change.Path;
             try
             {
-                var text = staged
-                    ? await _repo.GetStagedDiffAsync(change.Path, change.OldPath, CancellationToken.None)
-                    : await _repo.GetUnstagedDiffAsync(change.Path, change.Kind == ChangeKind.Untracked, CancellationToken.None);
+                var lines = WithoutHeaders(DiffParser.Parse(await GetDiffTextAsync(change, staged)));
+                if (row.Asset != null && row.Meta != null)
+                {
+                    // The .meta travels with its asset, so its diff is shown under the asset's.
+                    lines.Add(new DiffLine(DiffLineKind.Header, row.Meta.Path));
+                    lines.AddRange(WithoutHeaders(DiffParser.Parse(await GetDiffTextAsync(row.Meta, staged))));
+                }
                 if (generation != _diffGeneration) return;
-                var lines = WithoutHeaders(DiffParser.Parse(text));
                 var truncated = lines.Count > MaxDiffLines;
                 ShowDiff(change.Path, lines, truncated);
                 SetError(null);
@@ -742,6 +763,13 @@ namespace Shiori.Editor
                 if (generation != _diffGeneration) return;
                 SetError(Describe(ex));
             }
+        }
+
+        private System.Threading.Tasks.Task<string> GetDiffTextAsync(FileChange change, bool staged)
+        {
+            return staged
+                ? _repo.GetStagedDiffAsync(change.Path, change.OldPath, CancellationToken.None)
+                : _repo.GetUnstagedDiffAsync(change.Path, change.Kind == ChangeKind.Untracked, CancellationToken.None);
         }
 
         /// <summary>Fills the Unity view for <paramref name="change"/> and shows it instead of the text diff.</summary>

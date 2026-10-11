@@ -167,8 +167,8 @@ Material:
                 }
                 yield return null;
             }
-            Assert.That(((System.Collections.Generic.List<FileChange>)staged.itemsSource).Select(c => c.Path), Is.EqualTo(new[] { "Assets/a.txt" }));
-            Assert.That(((System.Collections.Generic.List<FileChange>)unstaged.itemsSource).Select(c => c.Path), Is.EqualTo(new[] { "Assets/new.txt" }));
+            Assert.That(((System.Collections.Generic.List<ChangeRow>)staged.itemsSource).Select(r => r.Path), Is.EqualTo(new[] { "Assets/a.txt" }));
+            Assert.That(((System.Collections.Generic.List<ChangeRow>)unstaged.itemsSource).Select(r => r.Path), Is.EqualTo(new[] { "Assets/new.txt" }));
             Assert.That(view.SelectedStaged, Is.True, "a.txt is only staged, so the selection follows it there");
             Assert.That(view.Q<Label>("staged-title").text, Is.EqualTo(L10n.Tr("detail.staged.title", 1)));
             Assert.That(view.Q<Button>("commit-button").text, Is.EqualTo(L10n.Tr("detail.commit.staged")));
@@ -183,6 +183,32 @@ Material:
             var nothing = SaveFlow.RunStagedAsync(_session, "nothing staged", CancellationToken.None);
             yield return Await(nothing);
             Assert.That(nothing.Result, Is.Null);
+        }
+
+        [UnityTest]
+        public IEnumerator DetailModeView_FoldsTheMetaIntoItsAssetRow_AndShowsBothDiffs()
+        {
+            yield return PrepareRepository();
+            File.WriteAllText(Path.Combine(_root, "Assets", "b.txt"), "b\n");
+            File.WriteAllText(Path.Combine(_root, "Assets", "b.txt.meta"), "guid: 0123\n");
+
+            var view = new DetailModeView(_session);
+            view.RestoreSelection("Assets/b.txt");
+            view.RefreshAll();
+            var lines = view.Q<ListView>("diff-lines");
+            var started = System.DateTime.UtcNow;
+            while (view.SelectedPath != "Assets/b.txt" || lines.itemsSource.Count == 0)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the row did not load");
+                yield return null;
+            }
+            var rows = (System.Collections.Generic.List<ChangeRow>)view.Q<ListView>("files-list").itemsSource;
+            Assert.That(rows.Select(r => r.Path), Is.EqualTo(new[] { "Assets/a.txt", "Assets/b.txt", "Assets/new.txt" }), "one row for b.txt and its .meta");
+            Assert.That(rows[1].Meta.Path, Is.EqualTo("Assets/b.txt.meta"));
+            var text = ((System.Collections.Generic.List<DiffLine>)lines.itemsSource).Select(l => l.Text).ToList();
+            Assert.That(text, Does.Contain("+b"));
+            Assert.That(text, Does.Contain("Assets/b.txt.meta"), "the .meta diff follows under its own heading");
+            Assert.That(text, Does.Contain("+guid: 0123"));
         }
 
         [Test]
