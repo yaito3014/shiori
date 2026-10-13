@@ -48,7 +48,6 @@ shiori-unity/
   Tools~/                   # 開発用スクリプト（配布対象外）
     New-DevProject.ps1      # 検証用 Unity プロジェクトをリポジトリの外に生成する
     Test-DevProject.ps1     # 検証用プロジェクトで EditMode テストを回し、結果を要約する
-    Sign-Package.ps1        # Unity 6 で署名した ../dist/<name>-<version>.tgz を作る（パスワードが要るので手元で実行）
   docs~/
     adr/                    # 設計判断の記録（後述）。末尾 ~ なので Unity からも配布物からも外れる
   .github/workflows/
@@ -103,8 +102,8 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
   あれば `../vpm-listing` に `repository_dispatch` を送る。VCC / ALCOM にはそのリスティングから届く。
 - `.unitypackage` では配布しない。Unity 6 は取り込み時に「署名されていない」と出し、
   `-upmPack` で署名できるのは `.tgz` だけなので。VCC 以外の利用者には署名済み `.tgz` を渡す。
-- 署名: `pwsh Tools~/Sign-Package.ps1 -Username <email> -Organization 15668133757639`（コアは既定、
-  拡張は `-PackageRoot ..\shiori-vrchat`）。`git archive HEAD` と同じ中身を Unity 6000.6 の `-upmPack` で署名し、
+- 署名: ワークスペースの `Sign-Package.ps1`（リポジトリには置かない。メンテナーのアカウントに結びつくため）。
+  ワークスペースで `pwsh ./Sign-Package.ps1 [shiori-vrchat] -Username <email> -Organization 15668133757639`。`git archive HEAD` と同じ中身を Unity 6000.6 の `-upmPack` で署名し、
   `../dist/<name>-<version>.tgz` に置く。Unity アカウントのパスワードが要る（Hub のログインでは足りない）。
   確認済み: Unity 6 は tarball として入れると Valid、`Packages/` に展開した埋め込みパッケージ（VCC の入れ方）は
   Unchecked で署名を見ない。2022.3 は tarball を問題なく入れられる（Unsigned 扱い）。
