@@ -25,6 +25,7 @@ namespace Shiori.Editor
         public const string TabChanges = "changes";
         public const string TabHistory = "history";
         public const string TabStashes = "stashes";
+        public const string TabBranches = "branches";
 
         /// <summary>The editor's own monospace font (used by the Console). Loaded once per domain.</summary>
         internal static readonly string[] MonospaceFontPaths =
@@ -83,6 +84,12 @@ namespace Shiori.Editor
 
         private readonly Label _stashEmpty;
         private readonly ScrollView _stashList;
+
+        private readonly Label _branchEmpty;
+        private readonly ScrollView _branchList;
+        private readonly TextField _branchName;
+        private readonly Button _branchCreate;
+        private readonly List<BranchInfo> _branches = new List<BranchInfo>();
 
         /// <summary>Unstaged changes (the working tree against the index), untracked files included.</summary>
         private readonly List<FileChange> _changes = new List<FileChange>();
@@ -153,6 +160,7 @@ namespace Shiori.Editor
             AddTab(TabChanges, "tab-changes", "page-changes", "detail.tab.changes");
             AddTab(TabHistory, "tab-history", "page-history", "detail.tab.history");
             AddTab(TabStashes, "tab-stashes", "page-stashes", "detail.tab.stashes");
+            AddTab(TabBranches, "tab-branches", "page-branches", "detail.tab.branches");
 
             // ---- changes ----
             _stagedTitle = this.Q<Label>("staged-title");
@@ -250,6 +258,18 @@ namespace Shiori.Editor
             _stashEmpty.text = L10n.Tr("detail.stash.empty");
             _stashList = this.Q<ScrollView>("stash-list");
 
+            // ---- branches ----
+            this.Q<Label>("branch-help").text = L10n.Tr("branch.help");
+            _branchEmpty = this.Q<Label>("branch-empty");
+            _branchEmpty.text = L10n.Tr("branch.empty");
+            _branchList = this.Q<ScrollView>("branch-list");
+            _branchName = this.Q<TextField>("branch-name");
+            _branchName.label = L10n.Tr("branch.create.label");
+            _branchCreate = this.Q<Button>("branch-create");
+            _branchCreate.text = L10n.Tr("branch.create.button");
+            _branchCreate.tooltip = L10n.Tr("branch.create.tooltip");
+            _branchCreate.clicked += CreateBranch;
+
             SetError(null);
             SetNotice(null);
             ShowDiff(null, null, false);
@@ -287,7 +307,7 @@ namespace Shiori.Editor
 
         private static bool IsTab(string id)
         {
-            return id == TabChanges || id == TabHistory || id == TabStashes;
+            return id == TabChanges || id == TabHistory || id == TabStashes || id == TabBranches;
         }
 
         private void AddTab(string id, string buttonName, string pageName, string labelKey)
@@ -348,6 +368,8 @@ namespace Shiori.Editor
                 _logExhausted = log.Count < LogPageSize;
                 _stashes.Clear();
                 _stashes.AddRange(await _repo.StashListAsync(ct));
+                _branches.Clear();
+                _branches.AddRange(await _repo.GetBranchesAsync(ct));
                 _sendStatus = await SendRunner.GetStatusAsync(_repo, ct);
                 _comparison = _sendStatus.HasRemote ? await ReceiveRunner.CompareAsync(_repo, ct) : null;
 
@@ -355,6 +377,7 @@ namespace Shiori.Editor
                 RenderFiles();
                 RenderLog();
                 RenderStashes();
+                RenderBranches();
                 RenderRemote();
             }
             catch (Exception ex)
@@ -1107,6 +1130,153 @@ namespace Shiori.Editor
                 case SetAsideBlock.Overlap: return L10n.Tr("detail.stash.overlap", SimpleModeView.ListPaths(plan.OverlappingPaths, 5));
                 default: return L10n.Tr("detail.stash.done", plan.Paths.Count);
             }
+        }
+
+        // ---- branch tab ----
+
+        private void RenderBranches()
+        {
+            _branchList.Clear();
+            _branchEmpty.EnableInClassList(HiddenClass, _branches.Count > 0);
+            _branchCreate.SetEnabled(_head != null);
+            foreach (var branch in _branches)
+            {
+                var row = new VisualElement { name = "branch-item" };
+                row.AddToClassList("shiori-variation-item");
+                var name = new Label(branch.Name) { tooltip = branch.ShortHash + "  " + branch.Subject };
+                name.AddToClassList("shiori-variation-label");
+                row.Add(name);
+                if (branch.IsCurrent || branch.IsRemoteOnly)
+                {
+                    var tag = new Label(L10n.Tr(branch.IsCurrent ? "branch.current" : "branch.remoteonly"));
+                    tag.AddToClassList("shiori-history-current");
+                    if (!branch.IsCurrent) tag.AddToClassList("shiori-variation-remote");
+                    row.Add(tag);
+                }
+                var time = new Label(RelativeTime.Format(branch.Time, DateTimeOffset.Now));
+                time.AddToClassList("shiori-history-time");
+                row.Add(time);
+                if (!branch.IsCurrent)
+                {
+                    var target = branch;
+                    row.Add(SmallButton("branch.switch.button", null, () => SwitchBranch(target)));
+                    row.Add(SmallButton("branch.merge.button", "branch.merge.tooltip", () => MergeBranch(target)));
+                    row.Add(SmallButton("branch.delete.button", null, () => DeleteBranch(target)));
+                }
+                _branchList.Add(row);
+            }
+        }
+
+        private static Button SmallButton(string textKey, string tooltipKey, Action clicked)
+        {
+            var button = new Button(clicked) { text = L10n.Tr(textKey) };
+            if (tooltipKey != null) button.tooltip = L10n.Tr(tooltipKey);
+            button.AddToClassList("shiori-small-button");
+            return button;
+        }
+
+        /// <summary>git switch -c: no files change, so nothing to confirm.</summary>
+        private async void CreateBranch()
+        {
+            if (_busy) return;
+            var name = _branchName.value.Trim();
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                switch (await VariationRunner.CreateAsync(_repo, name, CancellationToken.None))
+                {
+                    case CreateOutcome.InvalidName:
+                        SetNotice(L10n.Tr("branch.create.invalid"));
+                        break;
+                    case CreateOutcome.AlreadyExists:
+                        SetNotice(L10n.Tr("branch.create.exists", name));
+                        break;
+                    default:
+                        _branchName.value = string.Empty;
+                        SetNotice(L10n.Tr("branch.create.done", name));
+                        break;
+                }
+                SetError(null);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void SwitchBranch(BranchInfo target)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var result = await VariationFlow.SwitchAsync(_session, target, _commitMessage.value, true, CancellationToken.None);
+                if (result == null) return;
+                if (result.SavedCommitHash != null) _commitMessage.value = string.Empty;
+                SetError(null);
+                SetNotice(VariationFlow.DescribeSwitch(target, result, true));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void MergeBranch(BranchInfo source)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var result = await VariationFlow.MergeAsync(_session, source, _status?.Branch ?? L10n.Tr("detail.head"), CancellationToken.None);
+                if (result == null) return;
+                SetError(null);
+                SetNotice(VariationFlow.DescribeMerge(source, result));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void DeleteBranch(BranchInfo branch)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                if (!await VariationFlow.DeleteAsync(_session, branch, true, CancellationToken.None)) return;
+                SetError(null);
+                SetNotice(L10n.Tr("branch.delete.done", branch.Name));
+            }
+            catch (Exception ex)
+            {
+                SetError(RemoteText.DescribeAny(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
         }
 
         // ---- messages ----

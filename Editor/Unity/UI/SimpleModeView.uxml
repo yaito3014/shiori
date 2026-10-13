@@ -24,6 +24,15 @@
                 </ui:Foldout>
             </ui:VisualElement>
 
+            <ui:Foldout name="variation-panel" class="shiori-panel shiori-variation-panel shiori-hidden" value="false">
+                <ui:Label name="variation-help" class="shiori-muted" />
+                <ui:VisualElement name="variation-list" class="shiori-variation-list" />
+                <ui:VisualElement class="shiori-row shiori-variation-new">
+                    <ui:TextField name="variation-name" class="shiori-variation-new-name" />
+                    <ui:Button name="variation-create" class="shiori-small-button" />
+                </ui:VisualElement>
+            </ui:Foldout>
+
             <ui:Foldout name="aside-panel" class="shiori-panel shiori-aside-panel shiori-hidden" value="false">
                 <ui:Label name="aside-help" class="shiori-muted" />
                 <ui:VisualElement name="aside-list" class="shiori-aside-list" />

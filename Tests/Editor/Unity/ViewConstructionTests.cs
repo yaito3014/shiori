@@ -349,6 +349,63 @@ Material:
         }
 
         [UnityTest]
+        public IEnumerator SimpleModeView_ListsVariations_MainFirst()
+        {
+            yield return PrepareRepository();
+            var create = VariationRunner.CreateAsync(_session.Repository, VariationNames.ToBranch("衣装 A"), CancellationToken.None);
+            yield return Await(create);
+            Assert.That(create.Result, Is.EqualTo(CreateOutcome.Created));
+
+            var view = new SimpleModeView(_session);
+            var panel = view.Q<Foldout>("variation-panel");
+            Assert.That(panel.ClassListContains("shiori-hidden"), Is.True, "hidden until loaded");
+            view.RefreshAll();
+            var started = System.DateTime.UtcNow;
+            while (panel.ClassListContains("shiori-hidden"))
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the variations were not listed: " + view.Q<Label>("view-error").text);
+                yield return null;
+            }
+
+            Assert.That(panel.text, Is.EqualTo(L10n.Tr("variation.title", "衣装-A")));
+            var rows = view.Q<VisualElement>("variation-list");
+            Assert.That(rows.childCount, Is.EqualTo(2));
+            Assert.That(rows[0].Q<Label>().text, Is.EqualTo(L10n.Tr("variation.main")), "the branch the project started on is メイン, listed first");
+            Assert.That(rows[0].Query<Button>().ToList().Select(b => b.text), Is.EqualTo(new[] { L10n.Tr("variation.switch.button") }), "メイン cannot be deleted");
+            Assert.That(rows[1].Q<Label>().text, Is.EqualTo("衣装-A"));
+            Assert.That(rows[1].Query<Button>().ToList(), Is.Empty, "the current variation has no buttons");
+            Assert.That(rows[1].Query<Label>().ToList().Select(l => l.text), Does.Contain(L10n.Tr("variation.current")));
+        }
+
+        [UnityTest]
+        public IEnumerator DetailModeView_ListsBranches_WithSwitchMergeAndDelete()
+        {
+            yield return PrepareRepository();
+            var create = VariationRunner.CreateAsync(_session.Repository, "feature", CancellationToken.None);
+            yield return Await(create);
+
+            var view = new DetailModeView(_session);
+            view.ShowTab(DetailModeView.TabBranches, remember: false);
+            view.RefreshAll();
+            var list = view.Q<ScrollView>("branch-list");
+            var started = System.DateTime.UtcNow;
+            while (list.childCount < 2)
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the branches were not listed: " + view.Q<Label>("view-error").text);
+                yield return null;
+            }
+
+            var other = list.Children().Single(row => row.Q<Label>().text != "feature");
+            Assert.That(VariationNames.IsMain(other.Q<Label>().text), Is.True);
+            Assert.That(other.Query<Button>().ToList().Select(b => b.text), Is.EqualTo(new[]
+            {
+                L10n.Tr("branch.switch.button"), L10n.Tr("branch.merge.button"), L10n.Tr("branch.delete.button"),
+            }));
+            var current = list.Children().Single(row => row.Q<Label>().text == "feature");
+            Assert.That(current.Query<Button>().ToList(), Is.Empty);
+        }
+
+        [UnityTest]
         public IEnumerator SimpleModeView_SendRowFollowsTheRemote()
         {
             yield return PrepareRepository();

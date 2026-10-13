@@ -649,3 +649,38 @@
     padding: 0;
     flex-shrink: 0;
 }
+
+/* ---- バリエーション / ブランチ ---- */
+
+.shiori-variation-list {
+    flex-direction: column;
+    margin-top: 4px;
+}
+
+.shiori-variation-item {
+    flex-direction: row;
+    align-items: center;
+    min-height: 22px;
+}
+
+.shiori-variation-label {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shiori-variation-remote {
+    background-color: rgba(33, 150, 243, 0.75);
+}
+
+.shiori-variation-new {
+    margin-top: 4px;
+    align-items: center;
+}
+
+.shiori-variation-new-name {
+    flex-grow: 1;
+    flex-shrink: 1;
+}

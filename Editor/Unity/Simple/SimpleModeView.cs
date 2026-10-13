@@ -49,6 +49,11 @@ namespace Shiori.Editor
         private readonly Foldout _asidePanel;
         private readonly VisualElement _asideList;
         private readonly List<SetAsideChange> _setAside = new List<SetAsideChange>();
+        private readonly Foldout _variationPanel;
+        private readonly VisualElement _variationList;
+        private readonly TextField _variationName;
+        private readonly Button _variationCreate;
+        private readonly List<BranchInfo> _branches = new List<BranchInfo>();
         private readonly Label _historyEmpty;
         private readonly ListView _historyList;
         private readonly Button _historyMore;
@@ -154,6 +159,17 @@ namespace Shiori.Editor
             _asidePanel = this.Q<Foldout>("aside-panel");
             _asideList = this.Q<VisualElement>("aside-list");
             this.Q<Label>("aside-help").text = L10n.Tr("aside.help");
+            _variationPanel = this.Q<Foldout>("variation-panel");
+            _variationList = this.Q<VisualElement>("variation-list");
+            this.Q<Label>("variation-help").text = L10n.Tr("variation.help");
+            _variationName = this.Q<TextField>("variation-name");
+            _variationName.label = L10n.Tr("variation.new.label");
+            _variationName.maxLength = MemoMaxLength;
+            _variationName.RegisterCallback<KeyDownEvent>(OnVariationNameKeyDown, TrickleDown.TrickleDown);
+            _variationCreate = this.Q<Button>("variation-create");
+            _variationCreate.text = L10n.Tr("variation.new.button");
+            _variationCreate.tooltip = L10n.Tr("variation.new.tooltip");
+            _variationCreate.clicked += CreateVariation;
 
             this.Q<Label>("history-title").text = L10n.Tr("simple.history.title");
             var refresh = this.Q<Button>("history-refresh");
@@ -238,6 +254,8 @@ namespace Shiori.Editor
                 var stashes = await _repo.StashListAsync(ct);
                 _setAside.Clear();
                 _setAside.AddRange(SetAsideChange.FromStashList(stashes));
+                _branches.Clear();
+                _branches.AddRange(await _repo.GetBranchesAsync(ct));
                 _sendStatus = await SendRunner.GetStatusAsync(_repo, ct);
                 // What the last fetch saw; computed locally. The background check below refreshes it.
                 _comparison = _sendStatus.HasRemote ? await ReceiveRunner.CompareAsync(_repo, ct) : null;
@@ -246,6 +264,7 @@ namespace Shiori.Editor
                 RenderSaveStatus();
                 RenderHistory();
                 RenderSetAside();
+                RenderVariations();
                 RenderSend();
 
                 // The meta walk can take a while on big projects; show everything else first.
@@ -631,6 +650,163 @@ namespace Shiori.Editor
                 }
                 SetError(null);
                 SetNotice(RemoteText.Describe(result));
+            }
+            catch (Exception ex)
+            {
+                SetError(RemoteText.DescribeAny(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        // ---- バリエーション ----
+
+        /// <summary>
+        /// The variation panel: shown once something is saved. The title names the current variation, so it
+        /// is visible while the panel is folded; inside are the others, with 切り替える / 削除, and a field to make one.
+        /// </summary>
+        private void RenderVariations()
+        {
+            _variationList.Clear();
+            var show = _snapshots.Count > 0 && _status?.Branch != null;
+            _variationPanel.EnableInClassList(HiddenClass, !show);
+            if (!show) return;
+
+            var current = _branches.Find(b => b.IsCurrent);
+            _variationPanel.text = L10n.Tr("variation.title", current != null ? VariationFlow.NameOf(current, false) : VariationNames.Display(_status.Branch));
+            foreach (var branch in OrderVariations(_branches))
+            {
+                var row = new VisualElement();
+                row.AddToClassList("shiori-variation-item");
+                var label = new Label(VariationFlow.NameOf(branch, false)) { tooltip = branch.Subject };
+                label.AddToClassList("shiori-variation-label");
+                row.Add(label);
+                if (branch.IsCurrent || branch.IsRemoteOnly)
+                {
+                    var tag = new Label(L10n.Tr(branch.IsCurrent ? "variation.current" : "variation.remote"));
+                    tag.AddToClassList("shiori-history-current");
+                    if (!branch.IsCurrent)
+                    {
+                        tag.AddToClassList("shiori-variation-remote");
+                        tag.tooltip = L10n.Tr("variation.remote.tooltip");
+                    }
+                    row.Add(tag);
+                }
+                var time = new Label(RelativeTime.Format(branch.Time, DateTimeOffset.Now));
+                time.AddToClassList("shiori-history-time");
+                row.Add(time);
+                if (!branch.IsCurrent)
+                {
+                    var target = branch;
+                    var switchButton = new Button(() => SwitchVariation(target)) { text = L10n.Tr("variation.switch.button") };
+                    switchButton.AddToClassList("shiori-small-button");
+                    row.Add(switchButton);
+                    if (!VariationNames.IsMain(branch.Name))
+                    {
+                        var deleteButton = new Button(() => DeleteVariation(target)) { text = L10n.Tr("variation.delete.button") };
+                        deleteButton.AddToClassList("shiori-small-button");
+                        row.Add(deleteButton);
+                    }
+                }
+                _variationList.Add(row);
+            }
+        }
+
+        /// <summary>メイン first, then the rest newest first.</summary>
+        internal static List<BranchInfo> OrderVariations(IEnumerable<BranchInfo> branches)
+        {
+            var ordered = new List<BranchInfo>(branches);
+            ordered.Sort((a, b) =>
+            {
+                var main = VariationNames.IsMain(b.Name).CompareTo(VariationNames.IsMain(a.Name));
+                return main != 0 ? main : b.Time.CompareTo(a.Time);
+            });
+            return ordered;
+        }
+
+        private void OnVariationNameKeyDown(KeyDownEvent e)
+        {
+            if (!ShouldSaveOnKey(e.keyCode, IsImeComposing(), _variationCreate.enabledInHierarchy)) return;
+            e.StopPropagation();
+#if !UNITY_6000_0_OR_NEWER
+            e.PreventDefault();
+#endif
+            CreateVariation();
+        }
+
+        /// <summary>作る: a new variation from the current state. No files change, so there is nothing to confirm.</summary>
+        private async void CreateVariation()
+        {
+            if (_busy) return;
+            var branch = VariationNames.ToBranch(_variationName.value);
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var outcome = await VariationRunner.CreateAsync(_repo, branch, CancellationToken.None);
+                switch (outcome)
+                {
+                    case CreateOutcome.InvalidName:
+                        SetNotice(L10n.Tr("variation.new.invalid"));
+                        break;
+                    case CreateOutcome.AlreadyExists:
+                        SetNotice(L10n.Tr("variation.new.exists", VariationNames.Display(branch)));
+                        break;
+                    default:
+                        _variationName.value = string.Empty;
+                        SetNotice(L10n.Tr("variation.new.done", VariationNames.Display(branch)));
+                        break;
+                }
+                SetError(null);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void SwitchVariation(BranchInfo target)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var result = await VariationFlow.SwitchAsync(_session, target, _message.value, false, CancellationToken.None);
+                if (result == null) return;
+                if (result.SavedCommitHash != null) _message.value = string.Empty;
+                SetError(null);
+                SetNotice(VariationFlow.DescribeSwitch(target, result, false));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void DeleteVariation(BranchInfo branch)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                if (!await VariationFlow.DeleteAsync(_session, branch, false, CancellationToken.None)) return;
+                SetError(null);
+                SetNotice(L10n.Tr("variation.delete.done", VariationFlow.NameOf(branch, false)));
             }
             catch (Exception ex)
             {

@@ -26,6 +26,8 @@ namespace Shiori
         /// <summary>Subject of <see cref="Hash"/>.</summary>
         public string Subject { get; }
 
+        public string ShortHash => Hash.Length > 7 ? Hash.Substring(0, 7) : Hash;
+
         /// <summary>The ref to read from: <c>refs/heads/…</c>, or <c>refs/remotes/origin/…</c> for a remote-only branch.</summary>
         public string RefName => (IsRemoteOnly ? "refs/remotes/origin/" : "refs/heads/") + Name;
 
