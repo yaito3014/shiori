@@ -278,7 +278,7 @@ Material:
             Assert.That(DetailModeView.DescribeRemote(new SendStatus("u", 4, true), RemoteComparison.Unknown), Is.EqualTo(L10n.Tr("detail.remote.unknown")));
             Assert.That(DetailModeView.DescribeRemote(null, null), Is.EqualTo(L10n.Tr("detail.remote.none")));
             Assert.That(DetailModeView.DescribePush(new SendResult(SendOutcome.Sent, 3, false)), Is.EqualTo(L10n.Tr("detail.push.done", 3)));
-            Assert.That(DetailModeView.DescribePull(new ReceiveResult(ReceiveOutcome.Diverged, 2)), Is.EqualTo(L10n.Tr("detail.pull.diverged", 2)));
+            Assert.That(DetailModeView.DescribePull(new ReceiveResult(ReceiveOutcome.Merged, 2)), Is.EqualTo(L10n.Tr("detail.pull.merged", 2)));
             Assert.That(DetailModeView.DescribeStashApply(new SetAsidePlan(SetAsideBlock.None, new[] { "a", "b" }, null)), Is.EqualTo(L10n.Tr("detail.stash.done", 2)));
             Assert.That(DetailModeView.DescribeStashApply(new SetAsidePlan(SetAsideBlock.Overlap, new[] { "a" }, new[] { "a" })), Is.EqualTo(L10n.Tr("detail.stash.overlap", "a")));
             foreach (ReceiveOutcome outcome in System.Enum.GetValues(typeof(ReceiveOutcome)))
@@ -444,7 +444,7 @@ Material:
             Assert.That(RemoteText.Status(sent, new RemoteComparison(true, 1, 1)), Is.EqualTo(L10n.Tr("receive.split")));
             Assert.That(RemoteText.Status(sent, RemoteComparison.Unknown), Is.EqualTo(L10n.Tr("send.uptodate")));
             Assert.That(RemoteText.Describe(new ReceiveResult(ReceiveOutcome.Received, 4)), Is.EqualTo(L10n.Tr("receive.done", 4)));
-            Assert.That(RemoteText.Describe(new ReceiveResult(ReceiveOutcome.Diverged, 2)), Is.EqualTo(L10n.Tr("receive.diverged", 2)));
+            Assert.That(RemoteText.Describe(new ReceiveResult(ReceiveOutcome.Conflicted, 2)), Is.EqualTo(L10n.Tr("receive.conflicted", 2)));
             foreach (ReceiveOutcome outcome in System.Enum.GetValues(typeof(ReceiveOutcome)))
             {
                 Assert.That(RemoteText.Describe(new ReceiveResult(outcome)), Is.Not.Empty.And.Not.StartWith("receive."), outcome.ToString());

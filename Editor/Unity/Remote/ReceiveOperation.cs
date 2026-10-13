@@ -12,7 +12,8 @@ namespace Shiori.Editor
     /// </summary>
     internal static class ReceiveOperation
     {
-        public static async Task<ReceiveResult> RunAsync(IGitRepository repository, CancellationToken cancellationToken)
+        /// <param name="mergeMessage">The message of the merge save when histories split; null keeps git's own.</param>
+        public static async Task<ReceiveResult> RunAsync(IGitRepository repository, string mergeMessage, CancellationToken cancellationToken)
         {
             if (!MainThread.IsMainThread) throw new InvalidOperationException("ReceiveOperation must start on the main thread");
 
@@ -20,7 +21,7 @@ namespace Shiori.Editor
             AssetDatabase.DisallowAutoRefresh();
             try
             {
-                result = await ReceiveRunner.ReceiveAsync(repository, cancellationToken);
+                result = await ReceiveRunner.ReceiveAsync(repository, mergeMessage, cancellationToken);
             }
             finally
             {
@@ -28,7 +29,10 @@ namespace Shiori.Editor
                 AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
             }
 
-            if (result.Outcome == ReceiveOutcome.Received) RestoreOperation.ReloadOpenScenes(SetAsideOperation.ScenePaths(result.ChangedPaths));
+            if (result.Outcome == ReceiveOutcome.Received || result.Outcome == ReceiveOutcome.Merged || result.Outcome == ReceiveOutcome.Conflicted)
+            {
+                RestoreOperation.ReloadOpenScenes(SetAsideOperation.ScenePaths(result.ChangedPaths));
+            }
             return result;
         }
     }

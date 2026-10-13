@@ -67,7 +67,12 @@ namespace Shiori.Tests
             _repo.SwitchBranchAsync("shiori/b", true, CancellationToken.None).GetAwaiter().GetResult();
             _repo.DeleteBranchAsync("shiori/a", CancellationToken.None).GetAwaiter().GetResult();
             _repo.DeleteRemoteBranchAsync("shiori/a", CancellationToken.None).GetAwaiter().GetResult();
-            _repo.MergeAsync("refs/heads/shiori/a", CancellationToken.None).GetAwaiter().GetResult();
+            _repo.MergeAsync("refs/heads/shiori/a", null, CancellationToken.None).GetAwaiter().GetResult();
+            _repo.MergeAsync("refs/remotes/origin/main", "merged", CancellationToken.None).GetAwaiter().GetResult();
+            _repo.CheckoutSideAsync(new[] { "Assets/a b.prefab" }, ConflictSide.Theirs, CancellationToken.None).GetAwaiter().GetResult();
+            _repo.RemovePathsAsync(new[] { "Assets/c.mat" }, CancellationToken.None).GetAwaiter().GetResult();
+            _runner.On("rev-parse -q --verify HEAD", Hash + "\n");
+            Assert.That(_repo.CommitMergeAsync(CancellationToken.None).GetAwaiter().GetResult(), Is.EqualTo(Hash));
 
             Assert.That(_runner.Calls.Select(c => c.Joined), Is.EqualTo(new[]
             {
@@ -77,6 +82,11 @@ namespace Shiori.Tests
                 "branch -D shiori/a",
                 "push --porcelain origin --delete refs/heads/shiori/a",
                 "merge --no-edit -q refs/heads/shiori/a",
+                "merge --no-edit -q -m merged refs/remotes/origin/main",
+                "--literal-pathspecs checkout --theirs -- Assets/a b.prefab",
+                "--literal-pathspecs rm -q -f -- Assets/c.mat",
+                "commit -q --no-edit",
+                "rev-parse -q --verify HEAD",
             }));
             Assert.Throws<ArgumentException>(() => _repo.DeleteBranchAsync("-f", CancellationToken.None).GetAwaiter().GetResult());
             Assert.That(_repo.IsValidBranchNameAsync("-x", CancellationToken.None).GetAwaiter().GetResult(), Is.False);

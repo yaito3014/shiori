@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 
@@ -121,19 +122,47 @@ namespace Shiori.Tests
         }
 
         [Test]
-        public void SplitHistories_AreReportedAndLeftAlone()
+        public void SplitHistories_AreMergedIntoANewSave()
         {
             OtherSends("Assets/other.txt", "from there");
             var mine = Save(_mine, _here, "Assets/mine.txt", "from here");
 
+            var result = ReceiveRunner.ReceiveAsync(_mine, "合わせました", None).GetAwaiter().GetResult();
+
+            Assert.That(result.Outcome, Is.EqualTo(ReceiveOutcome.Merged));
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(_here.ReadText("Assets/other.txt"), Is.EqualTo("from there"));
+            Assert.That(_here.ReadText("Assets/mine.txt"), Is.EqualTo("from here"));
+            var log = _mine.GetLogAsync(1, 0, None).GetAwaiter().GetResult();
+            Assert.That(log[0].Message, Is.EqualTo("合わせました"));
+            Assert.That(log[0].Hash, Is.Not.EqualTo(mine));
+            var compare = ReceiveRunner.CompareAsync(_mine, None).GetAwaiter().GetResult();
+            Assert.That(compare.Behind, Is.EqualTo(0));
+            Assert.That(compare.Ahead, Is.EqualTo(2), "this PC's save and the merge wait to be sent");
+            Assert.That(_mine.GetStatusAsync(None).GetAwaiter().GetResult().HasChanges, Is.False);
+        }
+
+        [Test]
+        public void SplitHistories_ThatConflict_WaitWithThisPcsVersion()
+        {
+            OtherSends("Assets/a.txt", "v2 from there");
+            OtherSends("Assets/b.txt", "only there");
+            Save(_mine, _here, "Assets/a.txt", "v2 from here");
+
             var result = Receive();
 
-            Assert.That(result.Outcome, Is.EqualTo(ReceiveOutcome.Diverged));
-            Assert.That(result.Count, Is.EqualTo(1));
-            Assert.That(_mine.GetHeadAsync(None).GetAwaiter().GetResult(), Is.EqualTo(mine), "no merge, no rebase");
-            Assert.That(System.IO.File.Exists(_here.File("Assets/other.txt")), Is.False);
-            var compare = ReceiveRunner.CompareAsync(_mine, None).GetAwaiter().GetResult();
-            Assert.That(compare.Diverged, Is.True);
+            Assert.That(result.Outcome, Is.EqualTo(ReceiveOutcome.Conflicted));
+            Assert.That(result.Count, Is.EqualTo(2));
+            Assert.That(result.Conflicts.Select(c => c.Path), Is.EqualTo(new[] { "Assets/a.txt" }));
+            Assert.That(_here.ReadText("Assets/a.txt"), Is.EqualTo("v2 from here"), "no conflict markers: this PC's version stays until decided");
+            Assert.That(_here.ReadText("Assets/b.txt"), Is.EqualTo("only there"), "what merged cleanly is already in");
+            Assert.That(Receive().Outcome, Is.EqualTo(ReceiveOutcome.MergeInProgress));
+
+            MergeRunner.ResolveAsync(_mine, result.Conflicts, ConflictSide.Theirs, None).GetAwaiter().GetResult();
+            Assert.That(_here.ReadText("Assets/a.txt"), Is.EqualTo("v2 from there"));
+            Assert.That(MergeRunner.FinishAsync(_mine, None).GetAwaiter().GetResult(), Is.Not.Null);
+            Assert.That(MergeRunner.GetStateAsync(_mine, None).GetAwaiter().GetResult().InProgress, Is.False);
+            Assert.That(_mine.GetStatusAsync(None).GetAwaiter().GetResult().HasChanges, Is.False);
         }
 
         [Test]

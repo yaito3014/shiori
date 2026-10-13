@@ -684,3 +684,45 @@
     flex-grow: 1;
     flex-shrink: 1;
 }
+
+/* ---- merge in progress (M5) ---- */
+
+.shiori-merge-panel {
+    flex-direction: column;
+    border-width: 1px;
+    border-color: rgba(255, 170, 0, 0.6);
+    background-color: rgba(255, 170, 0, 0.08);
+}
+
+.shiori-merge-help {
+    white-space: normal;
+}
+
+.shiori-merge-list {
+    flex-direction: column;
+    margin-top: 4px;
+}
+
+.shiori-merge-item {
+    flex-direction: row;
+    align-items: center;
+    min-height: 22px;
+}
+
+.shiori-merge-path {
+    flex-grow: 1;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.shiori-merge-note {
+    margin-right: 4px;
+}
+
+.shiori-merge-actions {
+    margin-top: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+}

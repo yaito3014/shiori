@@ -68,7 +68,7 @@ namespace Shiori
         /// <summary>The working tree has changes; merging was not started.</summary>
         Unsaved,
 
-        /// <summary>Git stopped on conflicts; the merge was aborted and nothing changed.</summary>
+        /// <summary>Git stopped on conflicts; the merge is in progress until each file is decided or the merge is aborted.</summary>
         Conflicted,
     }
 
@@ -76,7 +76,7 @@ namespace Shiori
     {
         public MergeOutcome Outcome { get; }
 
-        /// <summary>For <see cref="MergeOutcome.Merged"/>: paths the merge changed in the working tree.</summary>
+        /// <summary>Paths the merge changed (or, for <see cref="MergeOutcome.Conflicted"/>, may have changed) in the working tree.</summary>
         public IReadOnlyList<string> ChangedPaths { get; }
 
         /// <summary>For <see cref="MergeOutcome.Conflicted"/>: paths git could not merge.</summary>

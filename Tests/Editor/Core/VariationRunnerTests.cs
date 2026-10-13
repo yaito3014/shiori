@@ -213,7 +213,7 @@ namespace Shiori.Tests
         }
 
         [Test]
-        public void Merge_WithAConflict_IsAbortedAndChangesNothing()
+        public void Merge_WithAConflict_StaysInProgressUntilAborted()
         {
             Create("shiori/b");
             Save(_mine, _here, "Assets/a.txt", "b's version");
@@ -224,9 +224,14 @@ namespace Shiori.Tests
 
             Assert.That(result.Outcome, Is.EqualTo(MergeOutcome.Conflicted));
             Assert.That(result.ConflictPaths, Is.EqualTo(new[] { "Assets/a.txt" }));
+            Assert.That(_here.ReadText("Assets/a.txt"), Is.EqualTo("main's version"), "ours is shown, never conflict markers");
+            var state = MergeRunner.GetStateAsync(_mine, None).GetAwaiter().GetResult();
+            Assert.That(state.InProgress && !state.ReadyToFinish, Is.True);
+
+            _mine.AbortMergeAsync(None).GetAwaiter().GetResult();
             Assert.That(Status(_mine).HasChanges, Is.False);
             Assert.That(_mine.GetHeadAsync(None).GetAwaiter().GetResult(), Is.EqualTo(head));
-            Assert.That(_here.ReadText("Assets/a.txt"), Is.EqualTo("main's version"));
+            Assert.That(MergeRunner.GetStateAsync(_mine, None).GetAwaiter().GetResult().InProgress, Is.False);
         }
 
         [Test]

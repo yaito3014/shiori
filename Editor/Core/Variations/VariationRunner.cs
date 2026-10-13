@@ -94,22 +94,13 @@ namespace Shiori
             if (status.HasChanges) return new MergeResult(MergeOutcome.Unsaved, null, null);
 
             var before = await repository.GetHeadAsync(cancellationToken).ConfigureAwait(false);
-            try
+            var conflicts = await MergeRunner.StartAsync(repository, source.RefName, null, cancellationToken).ConfigureAwait(false);
+            if (conflicts.Count > 0)
             {
-                await repository.MergeAsync(source.RefName, cancellationToken).ConfigureAwait(false);
-            }
-            catch (GitException)
-            {
-                var stopped = await repository.GetStatusAsync(cancellationToken).ConfigureAwait(false);
-                var conflicts = new List<string>();
-                foreach (var change in stopped.Changes)
-                {
-                    if (change.Kind == ChangeKind.Unmerged) conflicts.Add(change.Path);
-                }
-                if (conflicts.Count == 0 && !stopped.HasChanges) throw;
-                await repository.AbortMergeAsync(cancellationToken).ConfigureAwait(false);
-                if (conflicts.Count == 0) throw;
-                return new MergeResult(MergeOutcome.Conflicted, null, conflicts);
+                var paths = new List<string>(conflicts.Count);
+                foreach (var conflict in conflicts) paths.Add(conflict.Path);
+                var touched = before == null ? null : await repository.GetChangedPathsAsync(before, source.Hash, cancellationToken).ConfigureAwait(false);
+                return new MergeResult(MergeOutcome.Conflicted, touched, paths);
             }
 
             var after = await repository.GetHeadAsync(cancellationToken).ConfigureAwait(false);

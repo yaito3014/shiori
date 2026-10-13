@@ -41,6 +41,8 @@ namespace Shiori.Editor
         private readonly IGitRepository _repo;
         private readonly Label _error;
         private readonly Label _notice;
+        private readonly ConflictPanel _mergePanel;
+        private MergeState _merge = MergeState.None;
 
         private readonly TextField _commitMessage;
         private readonly Button _commitButton;
@@ -136,6 +138,11 @@ namespace Shiori.Editor
 
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
+            _mergePanel = new ConflictPanel(gitTerms: true);
+            _mergePanel.ResolveRequested += Resolve;
+            _mergePanel.AbortRequested += AbortMerge;
+            _mergePanel.FinishRequested += FinishMerge;
+            _notice.parent.Insert(_notice.parent.IndexOf(_notice) + 1, _mergePanel);
 
             // ---- toolbar ----
             _commitMessage = this.Q<TextField>("commit-message");
@@ -361,6 +368,7 @@ namespace Shiori.Editor
                 var ct = CancellationToken.None;
                 _head = await _repo.GetHeadAsync(ct);
                 _status = await _repo.GetStatusAsync(ct);
+                _merge = await MergeRunner.GetStateAsync(_repo, ct);
                 SplitChanges();
                 var log = await _repo.GetLogAsync(LogPageSize, 0, ct);
                 _log.Clear();
@@ -379,6 +387,7 @@ namespace Shiori.Editor
                 RenderStashes();
                 RenderBranches();
                 RenderRemote();
+                RenderMerge();
             }
             catch (Exception ex)
             {
@@ -404,9 +413,11 @@ namespace Shiori.Editor
             try
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
+                _merge = await MergeRunner.GetStateAsync(_repo, CancellationToken.None);
                 SplitChanges();
                 SetError(null);
                 RenderFiles();
+                RenderMerge();
             }
             catch (Exception ex)
             {
@@ -543,7 +554,7 @@ namespace Shiori.Editor
                 ReceiveResult result;
                 using (GitActivity.Begin(L10n.Tr("receive.progress")))
                 {
-                    result = await ReceiveOperation.RunAsync(_repo, CancellationToken.None);
+                    result = await ReceiveOperation.RunAsync(_repo, null, CancellationToken.None);
                 }
                 RemoteWatch.MarkFetched();
                 SetError(null);
@@ -567,7 +578,9 @@ namespace Shiori.Editor
                 case ReceiveOutcome.Received: return L10n.Tr("detail.pull.done", result.Count);
                 case ReceiveOutcome.NothingToReceive: return L10n.Tr("detail.pull.nothing");
                 case ReceiveOutcome.UnsavedChanges: return L10n.Tr("detail.pull.dirty");
-                case ReceiveOutcome.Diverged: return L10n.Tr("detail.pull.diverged", result.Count);
+                case ReceiveOutcome.Merged: return L10n.Tr("detail.pull.merged", result.Count);
+                case ReceiveOutcome.Conflicted: return L10n.Tr("detail.pull.conflicted", result.Count);
+                case ReceiveOutcome.MergeInProgress: return L10n.Tr("detail.pull.merging");
                 case ReceiveOutcome.Unrelated: return L10n.Tr("detail.pull.unrelated");
                 case ReceiveOutcome.NothingSaved: return L10n.Tr("detail.log.empty");
                 default: return L10n.Tr("detail.remote.none");
@@ -1271,6 +1284,90 @@ namespace Shiori.Editor
             catch (Exception ex)
             {
                 SetError(RemoteText.DescribeAny(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        // ---- merge in progress ----
+
+        /// <summary>
+        /// The merge panel. While conflicts remain, commit, push, pull, restore and branch actions wait; once all are
+        /// resolved, committing (the panel's button or the toolbar) records the merge.
+        /// </summary>
+        private void RenderMerge()
+        {
+            _mergePanel.Render(_merge);
+            var merging = _merge.InProgress;
+            _commitButton.SetEnabled(!merging || _merge.ReadyToFinish);
+            _pushButton.SetEnabled(!merging);
+            _pullButton.SetEnabled(!merging);
+            _commitRestore.SetEnabled(!merging);
+            _branchList.SetEnabled(!merging);
+            _branchCreate.SetEnabled(!merging && _head != null);
+            _stashList.SetEnabled(!merging);
+        }
+
+        private async void Resolve(IReadOnlyList<ConflictEntry> entries, ConflictSide side)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                await MergeFlow.ResolveAsync(_session, entries, side, true, CancellationToken.None);
+                SetError(null);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void FinishMerge()
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var hash = await MergeFlow.FinishAsync(_session, true, CancellationToken.None);
+                if (hash != null) SetNotice(L10n.Tr("merge.detail.done", hash.Length > 7 ? hash.Substring(0, 7) : hash));
+                SetError(null);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void AbortMerge()
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                if (!await MergeFlow.AbortAsync(_session, true, CancellationToken.None)) return;
+                SetError(null);
+                SetNotice(L10n.Tr("merge.detail.aborted"));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
             }
             finally
             {

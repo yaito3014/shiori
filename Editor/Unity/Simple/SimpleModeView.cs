@@ -32,6 +32,8 @@ namespace Shiori.Editor
         private readonly Label _error;
         private readonly Label _notice;
         private readonly VisualElement _extensionNotices;
+        private readonly ConflictPanel _mergePanel;
+        private MergeState _merge = MergeState.None;
         private readonly TextField _message;
         private readonly Label _placeholder;
         private readonly Label _memoCounter;
@@ -110,6 +112,11 @@ namespace Shiori.Editor
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
             _extensionNotices = this.Q<VisualElement>("ext-notices");
+            // The merge panel sits right under the messages: while it is there, it is the one thing to do.
+            _mergePanel = new ConflictPanel(gitTerms: false);
+            _mergePanel.ResolveRequested += Resolve;
+            _mergePanel.AbortRequested += AbortMerge;
+            _extensionNotices.parent.Insert(_extensionNotices.parent.IndexOf(_extensionNotices) + 1, _mergePanel);
             this.Q<Label>("save-title").text = L10n.Tr("simple.save.title");
             _message = this.Q<TextField>("save-message");
             _message.label = L10n.Tr("simple.save.message.label");
@@ -247,6 +254,7 @@ namespace Shiori.Editor
                 var ct = CancellationToken.None;
                 _head = await _repo.GetHeadAsync(ct);
                 _status = await _repo.GetStatusAsync(ct);
+                _merge = await MergeRunner.GetStateAsync(_repo, ct);
                 var log = await _repo.GetLogAsync(PageSize, 0, ct);
                 _snapshots.Clear();
                 _snapshots.AddRange(log);
@@ -266,6 +274,7 @@ namespace Shiori.Editor
                 RenderSetAside();
                 RenderVariations();
                 RenderSend();
+                RenderMerge();
 
                 // The meta walk can take a while on big projects; show everything else first.
                 var meta = await CheckMetaAsync();
@@ -311,8 +320,10 @@ namespace Shiori.Editor
             try
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
+                _merge = await MergeRunner.GetStateAsync(_repo, CancellationToken.None);
                 SetError(null);
                 RenderSaveStatus();
+                RenderMerge();
                 var meta = await CheckMetaAsync();
                 RenderMeta(meta);
                 await RenderExtensionNoticesAsync();
@@ -497,7 +508,8 @@ namespace Shiori.Editor
             var stats = _status?.Stats;
             var hasChanges = _status != null && _status.HasChanges;
             // Stay enabled even when git sees nothing: unsaved Inspector edits only reach disk when 保存 runs.
-            _saveButton.SetEnabled(_status != null);
+            // While a merge waits for decisions, saving would record a half-decided project.
+            _saveButton.SetEnabled(_status != null && !_merge.InProgress);
             _saveStatus.text = hasChanges
                 ? L10n.Tr("simple.save.changes", stats.Total, stats.Added, stats.Modified, stats.Deleted)
                 : L10n.Tr("simple.save.nochanges");
@@ -517,7 +529,7 @@ namespace Shiori.Editor
         {
             var selected = SelectedHash;
             var isCurrentAndClean = selected != null && selected == _head && _status != null && !_status.HasChanges;
-            _restoreButton.SetEnabled(selected != null && !isCurrentAndClean);
+            _restoreButton.SetEnabled(selected != null && !isCurrentAndClean && !_merge.InProgress);
             _restoreButton.tooltip = isCurrentAndClean ? L10n.Tr("restore.nothing") : L10n.Tr("restore.tooltip");
         }
 
@@ -581,8 +593,8 @@ namespace Shiori.Editor
         }
 
         /// <summary>
-        /// 受信: moves the project forward to the 送信先's latest saves. Only fast-forward, only with
-        /// everything saved; split histories are reported and left alone.
+        /// 受信: moves the project forward to the 送信先's latest saves, merging when this PC saved separately (what
+        /// cannot be combined waits in the merge panel). Unsaved changes are saved first, after asking.
         /// </summary>
         private async void Receive()
         {
@@ -597,21 +609,27 @@ namespace Shiori.Editor
                 var ct = CancellationToken.None;
                 _status = await _repo.GetStatusAsync(ct);
                 RenderSaveStatus();
-                if (_status.HasChanges)
-                {
-                    SetNotice(L10n.Tr("receive.unsaved"));
-                    return;
-                }
+                var saveFirst = _status.HasChanges;
                 if (!EditorUtility.DisplayDialog(
                         L10n.Tr("receive.dialog.title"),
-                        L10n.Tr("receive.dialog.body"),
-                        L10n.Tr("receive.dialog.ok"),
+                        saveFirst ? L10n.Tr("receive.unsaved.body") + "\n\n" + L10n.Tr("receive.dialog.body") : L10n.Tr("receive.dialog.body"),
+                        L10n.Tr(saveFirst ? "receive.unsaved.ok" : "receive.dialog.ok"),
                         L10n.Tr("restore.dialog.cancel"))) return;
+
+                if (saveFirst)
+                {
+                    string hash;
+                    using (GitActivity.Begin(L10n.Tr("simple.save.progress")))
+                    {
+                        hash = await SaveFlow.RunAsync(_session, _message.value, ct);
+                    }
+                    if (hash != null) _message.value = string.Empty;
+                }
 
                 ReceiveResult result;
                 using (GitActivity.Begin(L10n.Tr("receive.progress")))
                 {
-                    result = await ReceiveOperation.RunAsync(_repo, ct);
+                    result = await ReceiveOperation.RunAsync(_repo, L10n.Tr("receive.merge.message"), ct);
                 }
                 // A fetch just ran, so the next background check can wait.
                 RemoteWatch.MarkFetched();
@@ -654,6 +672,66 @@ namespace Shiori.Editor
             catch (Exception ex)
             {
                 SetError(RemoteText.DescribeAny(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        // ---- 合わせる ----
+
+        /// <summary>The merge panel, and everything that must wait while a merge waits for decisions.</summary>
+        private void RenderMerge()
+        {
+            _mergePanel.Render(_merge);
+            var free = !_merge.InProgress;
+            _message.SetEnabled(free);
+            _sendRow.SetEnabled(free);
+            _variationPanel.SetEnabled(free);
+            _asidePanel.SetEnabled(free);
+            UpdateRestoreButton();
+        }
+
+        /// <summary>自分 / 相手 for some files. Once nothing is left, the merge is saved right away.</summary>
+        private async void Resolve(IReadOnlyList<ConflictEntry> entries, ConflictSide side)
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                var ct = CancellationToken.None;
+                if (!await MergeFlow.ResolveAsync(_session, entries, side, false, ct)) return;
+                if (await MergeFlow.FinishAsync(_session, false, ct) != null) SetNotice(L10n.Tr("merge.done"));
+                SetError(null);
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
+            }
+            finally
+            {
+                _busy = false;
+            }
+            RefreshAll();
+        }
+
+        private async void AbortMerge()
+        {
+            if (_busy) return;
+            _busy = true;
+            SetNotice(null);
+            try
+            {
+                if (!await MergeFlow.AbortAsync(_session, false, CancellationToken.None)) return;
+                SetError(null);
+                SetNotice(L10n.Tr("merge.aborted"));
+            }
+            catch (Exception ex)
+            {
+                SetError(Describe(ex));
             }
             finally
             {

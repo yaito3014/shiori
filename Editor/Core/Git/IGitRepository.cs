@@ -172,16 +172,46 @@ namespace Shiori
         Task DeleteRemoteBranchAsync(string name, CancellationToken cancellationToken);
 
         /// <summary>
-        /// <c>git merge --no-edit &lt;revision&gt;</c> into the current branch. Changes files. Throws
-        /// <see cref="GitException"/> when git stops, for example on a conflict (see <see cref="AbortMergeAsync"/>).
+        /// <c>git merge --no-edit [-m &lt;message&gt;] &lt;revision&gt;</c> into the current branch. Changes files.
+        /// Returns the paths git could not merge (the merge then stays in progress, see <see cref="IsMergingAsync"/>),
+        /// or an empty list when the merge finished. Throws <see cref="GitException"/> when git refused to start.
+        /// <paramref name="message"/> null keeps git's own merge message.
         /// </summary>
-        Task MergeAsync(string revision, CancellationToken cancellationToken);
+        Task<IReadOnlyList<string>> MergeAsync(string revision, string message, CancellationToken cancellationToken);
 
         /// <summary>
-        /// <c>git merge --abort</c>: puts the index and files back as they were before a stopped merge. Shiori only
-        /// starts merges on a clean working tree, so this never discards the user's own changes.
+        /// <c>git merge --abort</c>: puts the index and files back as they were before a stopped merge. Files edited
+        /// since the merge stopped are lost, so only reach this through a confirmed UI action.
         /// </summary>
         Task AbortMergeAsync(CancellationToken cancellationToken);
+
+        /// <summary>True while a merge is in progress (MERGE_HEAD exists).</summary>
+        Task<bool> IsMergingAsync(CancellationToken cancellationToken);
+
+        /// <summary>The paths of a stopped merge that are still unresolved (<c>git ls-files -u</c>), in index order.</summary>
+        Task<IReadOnlyList<ConflictEntry>> GetConflictsAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git checkout --ours|--theirs -- &lt;paths&gt;</c>: writes that side's content to the working tree and
+        /// leaves the paths unresolved. Overwrites the files, so only for paths whose content is git's own merge output
+        /// or through a confirmed UI action. Every path must have the side (see <see cref="ConflictEntry.IsDeletedOn"/>).
+        /// </summary>
+        Task CheckoutSideAsync(IReadOnlyList<string> paths, ConflictSide side, CancellationToken cancellationToken);
+
+        /// <summary><c>git rm -q -f -- &lt;paths&gt;</c>: deletes the files and their index entries (resolving a conflict as deleted).</summary>
+        Task RemovePathsAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken);
+
+        /// <summary>The blob hash the working-tree file would get if added (<c>git hash-object</c>), or null when the file is missing.</summary>
+        Task<string> HashWorkingFileAsync(string path, CancellationToken cancellationToken);
+
+        /// <summary><c>git commit -q --no-edit</c>: finishes a merge whose conflicts are resolved, with the prepared message. Returns the hash.</summary>
+        Task<string> CommitMergeAsync(CancellationToken cancellationToken);
+
+        /// <summary>A value from the repository's own <c>.git/config</c> (<c>git config --local --get</c>), or null when unset.</summary>
+        Task<string> GetLocalConfigAsync(string key, CancellationToken cancellationToken);
+
+        /// <summary>Writes a value into the repository's own <c>.git/config</c>.</summary>
+        Task SetLocalConfigAsync(string key, string value, CancellationToken cancellationToken);
 
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);

@@ -133,7 +133,7 @@ namespace Shiori.Editor
         /// Files change under Unity's feet: auto-refresh is held while git works and the asset database is
         /// refreshed synchronously afterwards, as for 戻す.
         /// </summary>
-        private static async Task<T> WithAssetsHeldAsync<T>(Func<Task<T>> run)
+        internal static async Task<T> WithAssetsHeldAsync<T>(Func<Task<T>> run)
         {
             if (!MainThread.IsMainThread) throw new InvalidOperationException("VariationFlow must start on the main thread");
             AssetDatabase.DisallowAutoRefresh();

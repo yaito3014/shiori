@@ -360,15 +360,69 @@ namespace Shiori
             await RunNetworkAsync(PushTimeout, cancellationToken, "push", "--porcelain", RemoteName, "--delete", "refs/heads/" + name).ConfigureAwait(false);
         }
 
-        public async Task MergeAsync(string revision, CancellationToken cancellationToken)
+        public async Task<IReadOnlyList<string>> MergeAsync(string revision, string message, CancellationToken cancellationToken)
         {
             RequireBranchName(revision);
-            await RunAsync(cancellationToken, "merge", "--no-edit", "-q", revision).ConfigureAwait(false);
+            var args = new List<string> { "merge", "--no-edit", "-q" };
+            if (!string.IsNullOrWhiteSpace(message))
+            {
+                args.Add("-m");
+                args.Add(message);
+            }
+            args.Add(revision);
+            var result = await RunAllowingFailureAsync(cancellationToken, args.ToArray()).ConfigureAwait(false);
+            if (result.Succeeded) return Array.Empty<string>();
+
+            // A conflict leaves the merge in progress; anything else (say, untracked files in the way) starts nothing.
+            var conflicts = await IsMergingAsync(cancellationToken).ConfigureAwait(false)
+                ? await GetConflictsAsync(cancellationToken).ConfigureAwait(false)
+                : Array.Empty<ConflictEntry>();
+            if (conflicts.Count == 0) throw new GitException(CommandLine.Join(args.ToArray()), result.ExitCode, result.Stderr);
+            var paths = new List<string>(conflicts.Count);
+            foreach (var conflict in conflicts) paths.Add(conflict.Path);
+            return paths;
         }
 
         public async Task AbortMergeAsync(CancellationToken cancellationToken)
         {
             await RunAsync(cancellationToken, "merge", "--abort").ConfigureAwait(false);
+        }
+
+        public async Task<bool> IsMergingAsync(CancellationToken cancellationToken)
+        {
+            var result = await RunAllowingFailureAsync(cancellationToken, "rev-parse", "-q", "--verify", "MERGE_HEAD").ConfigureAwait(false);
+            return result.Succeeded && result.Stdout.Trim().Length > 0;
+        }
+
+        public async Task<IReadOnlyList<ConflictEntry>> GetConflictsAsync(CancellationToken cancellationToken)
+        {
+            var result = await RunAsync(cancellationToken, "ls-files", "-u", "-z").ConfigureAwait(false);
+            return ConflictParser.Parse(result.Stdout);
+        }
+
+        public async Task CheckoutSideAsync(IReadOnlyList<string> paths, ConflictSide side, CancellationToken cancellationToken)
+        {
+            await RunForPathsAsync(paths, cancellationToken, "checkout", side == ConflictSide.Ours ? "--ours" : "--theirs").ConfigureAwait(false);
+        }
+
+        public async Task RemovePathsAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken)
+        {
+            await RunForPathsAsync(paths, cancellationToken, "rm", "-q", "-f").ConfigureAwait(false);
+        }
+
+        public async Task<string> HashWorkingFileAsync(string path, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("path is required", nameof(path));
+            if (!File.Exists(Path.Combine(WorkingDirectory, path))) return null;
+            var result = await RunAsync(cancellationToken, "hash-object", "--", path.Replace('\\', '/')).ConfigureAwait(false);
+            return result.Stdout.Trim();
+        }
+
+        public async Task<string> CommitMergeAsync(CancellationToken cancellationToken)
+        {
+            await RunAsync(cancellationToken, "commit", "-q", "--no-edit").ConfigureAwait(false);
+            var head = await GetHeadAsync(cancellationToken).ConfigureAwait(false);
+            return head ?? throw new GitException("commit", 0, "HEAD is missing after commit");
         }
 
         private static void RequireBranchName(string name)
@@ -416,14 +470,23 @@ namespace Shiori
             await SetLocalConfigAsync("user.email", email.Trim(), cancellationToken).ConfigureAwait(false);
         }
 
-        internal async Task SetLocalConfigAsync(string key, string value, CancellationToken cancellationToken)
+        public async Task SetLocalConfigAsync(string key, string value, CancellationToken cancellationToken)
         {
-            await RunAsync(cancellationToken, "config", "--local", key, value).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("key is required", nameof(key));
+            await RunAsync(cancellationToken, "config", "--local", key, value ?? string.Empty).ConfigureAwait(false);
         }
 
-        private async Task<string> GetConfigAsync(string key, CancellationToken cancellationToken)
+        public Task<string> GetLocalConfigAsync(string key, CancellationToken cancellationToken)
         {
-            var result = await RunAllowingFailureAsync(cancellationToken, "config", "--get", key).ConfigureAwait(false);
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("key is required", nameof(key));
+            return GetConfigAsync(key, cancellationToken, "--local");
+        }
+
+        private async Task<string> GetConfigAsync(string key, CancellationToken cancellationToken, string scope = null)
+        {
+            var result = scope == null
+                ? await RunAllowingFailureAsync(cancellationToken, "config", "--get", key).ConfigureAwait(false)
+                : await RunAllowingFailureAsync(cancellationToken, "config", scope, "--get", key).ConfigureAwait(false);
             // Exit code 1 means the key is unset; anything else is a real failure.
             if (result.ExitCode == 1) return null;
             if (!result.Succeeded) throw new GitException("config --get " + key, result.ExitCode, result.Stderr);

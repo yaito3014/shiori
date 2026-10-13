@@ -59,7 +59,9 @@ namespace Shiori.Editor
                 case ReceiveOutcome.Received: return L10n.Tr("receive.done", result.Count);
                 case ReceiveOutcome.NothingToReceive: return L10n.Tr("receive.nothing");
                 case ReceiveOutcome.UnsavedChanges: return L10n.Tr("receive.unsaved");
-                case ReceiveOutcome.Diverged: return L10n.Tr("receive.diverged", result.Count);
+                case ReceiveOutcome.Merged: return L10n.Tr("receive.merged", result.Count);
+                case ReceiveOutcome.Conflicted: return L10n.Tr("receive.conflicted", result.Count);
+                case ReceiveOutcome.MergeInProgress: return L10n.Tr("receive.merging");
                 case ReceiveOutcome.Unrelated: return L10n.Tr("receive.unrelated");
                 case ReceiveOutcome.NothingSaved: return L10n.Tr("send.nothingsaved");
                 default: return L10n.Tr("send.none");
