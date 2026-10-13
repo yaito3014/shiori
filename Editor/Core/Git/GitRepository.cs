@@ -321,6 +321,62 @@ namespace Shiori
             return result.Stdout.Trim().Length > 0;
         }
 
+        public async Task<IReadOnlyList<BranchInfo>> GetBranchesAsync(CancellationToken cancellationToken)
+        {
+            var result = await RunAsync(cancellationToken, "for-each-ref", "--format=" + BranchParser.Format, "refs/heads", "refs/remotes/" + RemoteName).ConfigureAwait(false);
+            return BranchParser.Parse(result.Stdout);
+        }
+
+        public async Task<bool> IsValidBranchNameAsync(string name, CancellationToken cancellationToken)
+        {
+            // A leading '-' would be read as an option, and "-" alone means "the previous branch".
+            if (string.IsNullOrWhiteSpace(name) || name.StartsWith("-", StringComparison.Ordinal)) return false;
+            var result = await RunAllowingFailureAsync(cancellationToken, "check-ref-format", "--branch", name).ConfigureAwait(false);
+            return result.Succeeded && result.Stdout.Trim() == name;
+        }
+
+        public async Task CreateBranchAsync(string name, CancellationToken cancellationToken)
+        {
+            RequireBranchName(name);
+            await RunAsync(cancellationToken, "switch", "-q", "-c", name).ConfigureAwait(false);
+        }
+
+        public async Task SwitchBranchAsync(string name, bool fromRemote, CancellationToken cancellationToken)
+        {
+            RequireBranchName(name);
+            if (fromRemote) await RunAsync(cancellationToken, "switch", "-q", "-c", name, "--track", RemoteName + "/" + name).ConfigureAwait(false);
+            else await RunAsync(cancellationToken, "switch", "-q", name).ConfigureAwait(false);
+        }
+
+        public async Task DeleteBranchAsync(string name, CancellationToken cancellationToken)
+        {
+            RequireBranchName(name);
+            await RunAsync(cancellationToken, "branch", "-D", name).ConfigureAwait(false);
+        }
+
+        public async Task DeleteRemoteBranchAsync(string name, CancellationToken cancellationToken)
+        {
+            RequireBranchName(name);
+            await RunNetworkAsync(PushTimeout, cancellationToken, "push", "--porcelain", RemoteName, "--delete", "refs/heads/" + name).ConfigureAwait(false);
+        }
+
+        public async Task MergeAsync(string revision, CancellationToken cancellationToken)
+        {
+            RequireBranchName(revision);
+            await RunAsync(cancellationToken, "merge", "--no-edit", "-q", revision).ConfigureAwait(false);
+        }
+
+        public async Task AbortMergeAsync(CancellationToken cancellationToken)
+        {
+            await RunAsync(cancellationToken, "merge", "--abort").ConfigureAwait(false);
+        }
+
+        private static void RequireBranchName(string name)
+        {
+            if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("branch name is required", nameof(name));
+            if (name.StartsWith("-", StringComparison.Ordinal)) throw new ArgumentException("branch name must not start with '-'", nameof(name));
+        }
+
         /// <summary>
         /// Runs a command that talks to the network, with a time limit. Failures become
         /// <see cref="RemoteOperationException"/> classified from stdout and stderr together.

@@ -59,6 +59,16 @@ namespace Shiori
         }
 
         /// <summary>
+        /// A localized warning appended to the バリエーション switch confirmation, or null. <paramref name="preview"/>
+        /// holds the newest snapshot of the variation being switched to and the paths that differ from HEAD.
+        /// Not a fallback to the 戻す warning, whose wording is about going back.
+        /// </summary>
+        public virtual Task<string> GetSwitchWarningAsync(IExtensionContext context, RestorePreview preview, CancellationToken cancellationToken)
+        {
+            return Task.FromResult<string>(null);
+        }
+
+        /// <summary>
         /// Notices to show at the top of simple mode right now. Called whenever the view refreshes, so
         /// return them from the project's current state rather than remembering events.
         /// </summary>

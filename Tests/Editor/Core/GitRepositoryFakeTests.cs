@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading;
 using NUnit.Framework;
 
@@ -56,6 +57,29 @@ namespace Shiori.Tests
             _runner.Calls.Clear();
             _repo.StageAsync(new string[0], CancellationToken.None).GetAwaiter().GetResult();
             Assert.That(_runner.Calls, Is.Empty, "nothing to stage runs nothing");
+        }
+
+        [Test]
+        public void BranchCommands_AreExact_AndRefuseOptionLikeNames()
+        {
+            _repo.CreateBranchAsync("shiori/a", CancellationToken.None).GetAwaiter().GetResult();
+            _repo.SwitchBranchAsync("shiori/a", false, CancellationToken.None).GetAwaiter().GetResult();
+            _repo.SwitchBranchAsync("shiori/b", true, CancellationToken.None).GetAwaiter().GetResult();
+            _repo.DeleteBranchAsync("shiori/a", CancellationToken.None).GetAwaiter().GetResult();
+            _repo.DeleteRemoteBranchAsync("shiori/a", CancellationToken.None).GetAwaiter().GetResult();
+            _repo.MergeAsync("refs/heads/shiori/a", CancellationToken.None).GetAwaiter().GetResult();
+
+            Assert.That(_runner.Calls.Select(c => c.Joined), Is.EqualTo(new[]
+            {
+                "switch -q -c shiori/a",
+                "switch -q shiori/a",
+                "switch -q -c shiori/b --track origin/shiori/b",
+                "branch -D shiori/a",
+                "push --porcelain origin --delete refs/heads/shiori/a",
+                "merge --no-edit -q refs/heads/shiori/a",
+            }));
+            Assert.Throws<ArgumentException>(() => _repo.DeleteBranchAsync("-f", CancellationToken.None).GetAwaiter().GetResult());
+            Assert.That(_repo.IsValidBranchNameAsync("-x", CancellationToken.None).GetAwaiter().GetResult(), Is.False);
         }
 
         [Test]

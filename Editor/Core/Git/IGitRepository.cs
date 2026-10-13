@@ -140,6 +140,49 @@ namespace Shiori
         /// <summary>True when the two commits share history (<c>git merge-base</c> finds a common ancestor).</summary>
         Task<bool> HaveCommonHistoryAsync(string a, string b, CancellationToken cancellationToken);
 
+        /// <summary>Local branches, then branches only <c>origin</c> has (as of the last fetch). Empty before the first commit.</summary>
+        Task<IReadOnlyList<BranchInfo>> GetBranchesAsync(CancellationToken cancellationToken);
+
+        /// <summary>True when git accepts <paramref name="name"/> as a new branch name (<c>git check-ref-format --branch</c>).</summary>
+        Task<bool> IsValidBranchNameAsync(string name, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git switch -c &lt;name&gt;</c>: a new branch at HEAD, switched to at once. No file changes; unsaved
+        /// changes simply stay in the working tree.
+        /// </summary>
+        Task CreateBranchAsync(string name, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git switch &lt;name&gt;</c>, or with <paramref name="fromRemote"/> <c>git switch -c &lt;name&gt; --track
+        /// origin/&lt;name&gt;</c>. Changes files. Unsaved changes are carried along; when they collide with files
+        /// that differ in the other branch, git refuses and changes nothing (<see cref="GitException"/>).
+        /// </summary>
+        Task SwitchBranchAsync(string name, bool fromRemote, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git branch -D &lt;name&gt;</c>. Loses commits no other branch has, so only reach this through a
+        /// confirmed UI action. Never the current branch.
+        /// </summary>
+        Task DeleteBranchAsync(string name, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git push origin --delete &lt;name&gt;</c>, removing the branch from the 送信先. Only reach this through a
+        /// confirmed UI action. Network operation with a time limit; throws <see cref="RemoteOperationException"/>.
+        /// </summary>
+        Task DeleteRemoteBranchAsync(string name, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git merge --no-edit &lt;revision&gt;</c> into the current branch. Changes files. Throws
+        /// <see cref="GitException"/> when git stops, for example on a conflict (see <see cref="AbortMergeAsync"/>).
+        /// </summary>
+        Task MergeAsync(string revision, CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git merge --abort</c>: puts the index and files back as they were before a stopped merge. Shiori only
+        /// starts merges on a clean working tree, so this never discards the user's own changes.
+        /// </summary>
+        Task AbortMergeAsync(CancellationToken cancellationToken);
+
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
 

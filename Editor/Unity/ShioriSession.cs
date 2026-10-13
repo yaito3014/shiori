@@ -291,14 +291,33 @@ namespace Shiori.Editor
         }
 
         /// <summary>All extensions' warnings for this 戻す, one per paragraph, or null. A failing extension is logged and skipped.</summary>
-        public async Task<string> GetRestoreWarningAsync(RestorePreview preview, CancellationToken cancellationToken)
+        public Task<string> GetRestoreWarningAsync(RestorePreview preview, CancellationToken cancellationToken)
+        {
+            return CollectAsync((extension, context) => extension.GetRestoreWarningAsync(context, preview, cancellationToken));
+        }
+
+        /// <summary>What switching to <paramref name="target"/> will change: the paths that differ between HEAD and its newest snapshot.</summary>
+        public async Task<RestorePreview> PreviewSwitchAsync(BranchInfo target, CancellationToken cancellationToken)
+        {
+            var repository = Repository ?? throw new InvalidOperationException("git is not available");
+            var paths = await repository.GetChangedPathsAsync("HEAD", target.Hash, cancellationToken);
+            return new RestorePreview(target.ToSnapshot(), paths);
+        }
+
+        /// <summary>All extensions' warnings for this switch, one per paragraph, or null. A failing extension is logged and skipped.</summary>
+        public Task<string> GetSwitchWarningAsync(RestorePreview preview, CancellationToken cancellationToken)
+        {
+            return CollectAsync((extension, context) => extension.GetSwitchWarningAsync(context, preview, cancellationToken));
+        }
+
+        private async Task<string> CollectAsync(Func<ShioriExtension, IExtensionContext, Task<string>> getText)
         {
             var parts = new List<string>();
             foreach (var extension in Extensions)
             {
                 try
                 {
-                    var text = await extension.GetRestoreWarningAsync(ContextFor(extension), preview, cancellationToken);
+                    var text = await getText(extension, ContextFor(extension));
                     if (!string.IsNullOrWhiteSpace(text)) parts.Add(text.Trim());
                 }
                 catch (Exception ex)

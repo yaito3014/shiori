@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace Shiori
 {
     /// <summary>
-    /// What a 戻す is about to change, computed before the confirmation dialog: the target snapshot
+    /// What a 戻す (or a バリエーション switch) is about to change, computed before the confirmation dialog: the target snapshot
     /// and every path whose content differs between the current snapshot (HEAD) and the target.
     /// Unsaved working-tree changes are not included; the dialog handles those separately.
     /// </summary>
