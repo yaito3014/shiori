@@ -139,6 +139,11 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 - `git clean`（`-n` のドライランを除く）
 - `git push --force` / `--force-with-lease`
 - `git branch -D`、`git stash drop`、`git reflog expire`、`git gc --prune`
+- `git merge --abort`
+
+マージが競合で止まった直後に、競合したファイルへ `git checkout --ours` で自分の版を入れるのは確認なしでよい
+（マージは作業ツリーがきれいなときだけ始めるので、上書きするのは git の出力だけ。ADR 0007）。
+そのあとの「自分 / 相手」は、ユーザーのボタン操作で行い、止まったあとに変わったファイルなら確認してから上書きする。
 
 さらに:
 
@@ -177,7 +182,6 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 
 次の点は未決定。実装が必要になったら着手前にユーザーに聞くこと。
 
-- 競合解決の UI（UnityYAMLMerge 失敗時のフォールバック表示）
 - サムネイルの保存先（`refs/notes/shiori` か orphan ブランチか）
 - VPM リポジトリ（index.json）の公開手順と、`shiori-vrchat` への分割タイミング
 - 英語ローカライズを正式対応にする時期

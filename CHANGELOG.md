@@ -3,6 +3,28 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [Unreleased]
+
+### 日本語
+
+- **受信で、ほかの PC の保存と合わせられるようになりました。** これまでは、2 台の PC で別々に保存すると受信が止まっていました。
+  今は両方を合わせた保存を作ります。シーンやプレハブは Unity の道具（UnityYAMLMerge）がオブジェクトごとに合わせます。
+  合わせられなかったファイルは、ファイルごとに「自分のを使う」「相手のを使う」を選べます。「やめる」で受信する前に戻せます。
+- **はじめの設定に「Unity のマージ設定」を足しました。** すでに使っているプロジェクトでは、かんたんモードの上に出る
+  「設定する」を押してください。Unity を入れ替えたときは「更新する」が出ます。
+- 保存していない変更があるときの受信は、確認のあと先に保存してから受信します。
+- 詳細モードのプルとマージも、競合したら止めて、ファイルごとに ours / theirs を選べるようになりました。
+
+### English
+
+- **受信 merges with the other PC's saves**: when two PCs saved separately, 受信 used to stop; now it makes a save that
+  combines both. Scenes and prefabs are merged object by object by Unity's UnityYAMLMerge. Files it cannot combine are
+  decided one by one (自分 / 相手), and やめる goes back to before the 受信.
+- **New setup step 「Unity のマージ設定」**: projects already set up get a 設定する button at the top of simple mode, and
+  更新する after a Unity upgrade.
+- 受信 with unsaved changes now saves them first, after asking.
+- Detail mode's pull and merge stop on conflicts and let you pick ours / theirs per file.
+
 ## [0.5.0] - 2026-10-14
 
 ### 日本語
