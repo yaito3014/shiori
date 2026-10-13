@@ -3,6 +3,26 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [Unreleased]
+
+### 日本語
+
+- **バリエーションが使えるようになりました。** 同じプロジェクトの別の版（衣装違いなど）を作って行き来できます。
+  保存と履歴はバリエーションごとに分かれます。切り替える前に、変わるファイルの数と、Unity が読み込み直すことを知らせます。
+  保存していない変更は、保存してから切り替えるか、そのまま持っていくかを選べます。
+  ほかの PC で作ったバリエーションも、受信のあと一覧に出ます。削除は確認のあと、送信先からも消します。
+- **詳細モードに「ブランチ」タブを足しました。** 作成・切り替え・マージ・削除ができます。マージは作業ツリーがきれいなときだけで、
+  競合したら中止して何も変えません。
+
+### English
+
+- **Variations**: make other versions of the same project (say, a different outfit) and switch between them. Each
+  variation has its own saves and history. Switching says how many files change and that Unity will re-import them;
+  unsaved changes are either saved first or carried along. Variations made on another PC appear after 受信. Deleting
+  asks first and also removes the variation from the 送信先.
+- **Branch tab in detail mode**: create, switch, merge and delete branches. Merging needs a clean working tree and
+  is aborted, changing nothing, when it conflicts.
+
 ## [0.4.0] - 2026-10-13
 
 ### 日本語
