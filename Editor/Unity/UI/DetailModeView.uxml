@@ -2,6 +2,7 @@
     <ui:VisualElement class="shiori-detail">
         <ui:Label name="view-error" class="shiori-error shiori-hidden" />
         <ui:Label name="view-notice" class="shiori-notice shiori-hidden" />
+        <ui:VisualElement name="ext-notices" class="shiori-ext-notices shiori-hidden" />
 
         <ui:VisualElement name="toolbar" class="shiori-panel shiori-detail-toolbar">
             <ui:VisualElement class="shiori-row">

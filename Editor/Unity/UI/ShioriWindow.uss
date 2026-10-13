@@ -536,6 +536,22 @@
     flex-direction: column;
 }
 
+.shiori-ext-step.shiori-ext-step-line {
+    flex-direction: row;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.shiori-ext-step-line > .shiori-settings-section,
+.shiori-ext-step-line > .shiori-settings-help {
+    margin: 0 8px 0 0;
+    flex-shrink: 1;
+}
+
+.shiori-ext-notice.shiori-ext-step-line > .shiori-step-controls-row {
+    margin-top: 0;
+}
+
 .shiori-ext-step > .shiori-step-controls-row {
     margin-top: 4px;
 }

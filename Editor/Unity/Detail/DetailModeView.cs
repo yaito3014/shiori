@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -41,6 +42,7 @@ namespace Shiori.Editor
         private readonly IGitRepository _repo;
         private readonly Label _error;
         private readonly Label _notice;
+        private readonly VisualElement _extensionNotices;
         private readonly ConflictPanel _mergePanel;
         private MergeState _merge = MergeState.None;
 
@@ -138,11 +140,12 @@ namespace Shiori.Editor
 
             _error = this.Q<Label>("view-error");
             _notice = this.Q<Label>("view-notice");
+            _extensionNotices = this.Q<VisualElement>("ext-notices");
             _mergePanel = new ConflictPanel(gitTerms: true);
             _mergePanel.ResolveRequested += Resolve;
             _mergePanel.AbortRequested += AbortMerge;
             _mergePanel.FinishRequested += FinishMerge;
-            _notice.parent.Insert(_notice.parent.IndexOf(_notice) + 1, _mergePanel);
+            _extensionNotices.parent.Insert(_extensionNotices.parent.IndexOf(_extensionNotices) + 1, _mergePanel);
 
             // ---- toolbar ----
             _commitMessage = this.Q<TextField>("commit-message");
@@ -388,6 +391,7 @@ namespace Shiori.Editor
                 RenderBranches();
                 RenderRemote();
                 RenderMerge();
+                await RenderExtensionNoticesAsync();
             }
             catch (Exception ex)
             {
@@ -418,6 +422,7 @@ namespace Shiori.Editor
                 SetError(null);
                 RenderFiles();
                 RenderMerge();
+                await RenderExtensionNoticesAsync();
             }
             catch (Exception ex)
             {
@@ -428,6 +433,12 @@ namespace Shiori.Editor
                 _busy = false;
             }
             RunPendingRefresh();
+        }
+
+        /// <summary>The same pending steps and notices as simple mode, one line each; the explanation is the tooltip.</summary>
+        private Task RenderExtensionNoticesAsync()
+        {
+            return ExtensionStepPanel.FillAsync(_session, _extensionNotices, true, RefreshStatus);
         }
 
         private async void CheckRemoteInBackground()

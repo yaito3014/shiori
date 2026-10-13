@@ -1,5 +1,6 @@
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine.UIElements;
 
 namespace Shiori.Editor
@@ -7,12 +8,15 @@ namespace Shiori.Editor
     /// <summary>
     /// Compact rendering of one extension step for the Project Settings page: title, message,
     /// detail, buttons and error. Re-evaluates the step after each action and raises <see cref="Changed"/>.
+    /// The one-line form (detail mode) shows only the heading and the buttons; the explanation is the tooltip.
     /// </summary>
     internal sealed class ExtensionStepPanel : VisualElement
     {
         private const string HiddenClass = "shiori-hidden";
 
         private readonly ExtensionStepStatus _status;
+        private readonly bool _oneLine;
+        private readonly Label _title;
         private readonly Label _message;
         private readonly Label _detail;
         private readonly VisualElement _buttons;
@@ -21,16 +25,16 @@ namespace Shiori.Editor
 
         public event Action Changed;
 
-        public ExtensionStepPanel(ExtensionStepStatus status)
+        public ExtensionStepPanel(ExtensionStepStatus status, bool oneLine = false)
         {
             _status = status ?? throw new ArgumentNullException(nameof(status));
+            _oneLine = oneLine;
             AddToClassList("shiori-ext-step");
+            EnableInClassList("shiori-ext-step-line", oneLine);
 
-            var title = new Label(status.Title);
-            title.AddToClassList("shiori-settings-section");
-            // Notices may come without a heading.
-            title.EnableInClassList(HiddenClass, string.IsNullOrEmpty(status.Title) || status.Step is NoticeStep && string.IsNullOrEmpty(status.Step.Title));
-            Add(title);
+            _title = new Label(status.Title);
+            _title.AddToClassList("shiori-settings-section");
+            Add(_title);
             _message = new Label();
             _message.AddToClassList("shiori-settings-help");
             Add(_message);
@@ -42,6 +46,7 @@ namespace Shiori.Editor
             Add(_buttons);
             _error = new Label();
             _error.AddToClassList("shiori-error");
+            _error.AddToClassList(HiddenClass);
             Add(_error);
 
             Render();
@@ -50,9 +55,13 @@ namespace Shiori.Editor
         private void Render()
         {
             _buttons.Clear();
+            // Notices may come without a heading; the one-line form then shows the message instead.
+            var hasTitle = !string.IsNullOrEmpty(_status.Title) && !(_status.Step is NoticeStep && string.IsNullOrEmpty(_status.Step.Title));
+            _title.EnableInClassList(HiddenClass, !hasTitle);
             if (_status.Error != null)
             {
                 _message.text = L10n.Tr("step.ext.error", _status.Error.Message);
+                _message.EnableInClassList(HiddenClass, false);
                 _detail.EnableInClassList(HiddenClass, true);
                 return;
             }
@@ -60,7 +69,12 @@ namespace Shiori.Editor
             var view = _status.View;
             _message.text = view.Message;
             _detail.text = view.Detail;
-            _detail.EnableInClassList(HiddenClass, string.IsNullOrEmpty(view.Detail));
+            _detail.EnableInClassList(HiddenClass, _oneLine || string.IsNullOrEmpty(view.Detail));
+            _message.EnableInClassList(HiddenClass, _oneLine && hasTitle);
+            if (_oneLine)
+            {
+                tooltip = string.IsNullOrEmpty(view.Detail) ? view.Message : view.Message + "\n\n" + view.Detail;
+            }
             foreach (var action in view.Actions)
             {
                 var button = new Button(() => Run(action)) { text = action.Label };
@@ -91,6 +105,28 @@ namespace Shiori.Editor
                 Render();
             }
             Changed?.Invoke();
+        }
+
+        /// <summary>
+        /// Fills <paramref name="container"/> with every pending step and current notice. Steps come first: a step
+        /// is something to set up, a notice reports state. <paramref name="changed"/> runs after a button ran.
+        /// </summary>
+        public static async Task FillAsync(ShioriSession session, VisualElement container, bool oneLine, Action changed)
+        {
+            if (session.Extensions.Count == 0) return;
+            var steps = await session.EvaluateExtensionStepsAsync(CancellationToken.None);
+            steps.AddRange(await session.GetNoticesAsync(CancellationToken.None));
+            container.Clear();
+            foreach (var step in steps)
+            {
+                if (step.Done) continue;
+                var notice = new ExtensionStepPanel(step, oneLine);
+                notice.AddToClassList("shiori-notice");
+                notice.AddToClassList("shiori-ext-notice");
+                notice.Changed += changed;
+                container.Add(notice);
+            }
+            container.EnableInClassList(HiddenClass, container.childCount == 0);
         }
 
         private void SetError(string text)

@@ -478,23 +478,9 @@ namespace Shiori.Editor
         /// An extension step that is pending after setup (say, VCC added a package) is shown here as a
         /// notice with the step's own button, so the user does not have to find it under Project Settings.
         /// </summary>
-        private async Task RenderExtensionNoticesAsync()
+        private Task RenderExtensionNoticesAsync()
         {
-            if (_session.Extensions.Count == 0) return;
-            var steps = await _session.EvaluateExtensionStepsAsync(CancellationToken.None);
-            // Notices come after pending steps: a step is something to set up, a notice reports state.
-            steps.AddRange(await _session.GetNoticesAsync(CancellationToken.None));
-            _extensionNotices.Clear();
-            foreach (var step in steps)
-            {
-                if (step.Done) continue;
-                var notice = new ExtensionStepPanel(step);
-                notice.AddToClassList("shiori-notice");
-                notice.AddToClassList("shiori-ext-notice");
-                notice.Changed += OnExtensionNoticeChanged;
-                _extensionNotices.Add(notice);
-            }
-            _extensionNotices.EnableInClassList(HiddenClass, _extensionNotices.childCount == 0);
+            return ExtensionStepPanel.FillAsync(_session, _extensionNotices, false, OnExtensionNoticeChanged);
         }
 
         /// <summary>After a notice's button ran, re-evaluate: a fixed step disappears, and the working tree may have changed.</summary>

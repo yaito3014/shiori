@@ -23,15 +23,26 @@ namespace Shiori.Editor.Tests
             _session = new ShioriSession(_root);
         }
 
-        [TearDown]
-        public void TearDown()
+        /// <summary>A view may still be drawing its notices (more git calls) after a test has seen what it needed; wait for it.</summary>
+        [UnityTearDown]
+        public IEnumerator TearDown()
         {
-            if (!Directory.Exists(_root)) return;
-            foreach (var info in new DirectoryInfo(_root).GetFileSystemInfos("*", SearchOption.AllDirectories))
+            var started = System.DateTime.UtcNow;
+            while (Directory.Exists(_root))
             {
-                if ((info.Attributes & FileAttributes.ReadOnly) != 0) info.Attributes &= ~FileAttributes.ReadOnly;
+                try
+                {
+                    foreach (var info in new DirectoryInfo(_root).GetFileSystemInfos("*", SearchOption.AllDirectories))
+                    {
+                        if ((info.Attributes & FileAttributes.ReadOnly) != 0) info.Attributes &= ~FileAttributes.ReadOnly;
+                    }
+                    Directory.Delete(_root, true);
+                }
+                catch (IOException) when ((System.DateTime.UtcNow - started).TotalSeconds < 30)
+                {
+                }
+                yield return null;
             }
-            Directory.Delete(_root, true);
         }
 
         private static IEnumerator Await(Task task)
@@ -77,6 +88,30 @@ namespace Shiori.Editor.Tests
             Assert.That(view.SelectedPath, Is.EqualTo("Assets/a.txt"));
             Assert.That(view.Q<ListView>("diff-lines").itemsSource.Count, Is.GreaterThan(0));
             Assert.That(view.Q<Label>("view-error").ClassListContains("shiori-hidden"), Is.True, view.Q<Label>("view-error").text);
+        }
+
+        [UnityTest]
+        public IEnumerator DetailModeView_ShowsPendingStepsOnOneLine()
+        {
+            Assume.That(File.Exists(MergeSetupStep.ToolPath), Is.True, "this editor ships UnityYAMLMerge");
+            yield return PrepareRepository();
+
+            var view = new DetailModeView(_session);
+            view.RefreshAll();
+            var notices = view.Q<VisualElement>("ext-notices");
+            var started = System.DateTime.UtcNow;
+            while (notices.ClassListContains("shiori-hidden"))
+            {
+                if ((System.DateTime.UtcNow - started).TotalSeconds > 60) Assert.Fail("the pending merge setup was not shown");
+                yield return null;
+            }
+
+            var panel = notices.Q<ExtensionStepPanel>();
+            Assert.That(panel.ClassListContains("shiori-ext-step-line"), Is.True);
+            var labels = panel.Query<Label>().ToList().Where(l => !l.ClassListContains("shiori-hidden")).Select(l => l.text);
+            Assert.That(labels, Is.EqualTo(new[] { L10n.Tr("step.merge.title") }), "only the heading; the explanation is the tooltip");
+            Assert.That(panel.tooltip, Does.StartWith(L10n.Tr("step.merge.explain")));
+            Assert.That(panel.Query<Button>().ToList().Select(b => b.text), Is.EqualTo(new[] { L10n.Tr("step.merge.apply") }));
         }
 
         [UnityTest]

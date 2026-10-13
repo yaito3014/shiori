@@ -14,6 +14,8 @@ Each release is described for the people who use it. The developer-level detail 
   「設定する」を押してください。Unity を入れ替えたときは「更新する」が出ます。
 - 保存していない変更があるときの受信は、確認のあと先に保存してから受信します。
 - 詳細モードのプルとマージも、競合したら止めて、ファイルごとに ours / theirs を選べるようになりました。
+- かんたんモードの上に出るお知らせ（まだの設定や、パッケージがそろっていないなど）を、詳細モードにも 1 行で出すようにしました。
+  説明はマウスを乗せると出ます。
 
 ### English
 
@@ -24,6 +26,8 @@ Each release is described for the people who use it. The developer-level detail 
   更新する after a Unity upgrade.
 - 受信 with unsaved changes now saves them first, after asking.
 - Detail mode's pull and merge stop on conflicts and let you pick ours / theirs per file.
+- The notices at the top of simple mode (pending setup, packages out of sync, ...) now also appear in detail mode, one
+  line each with the heading and buttons; hover for the explanation.
 
 ## [0.5.0] - 2026-10-14
 
