@@ -103,7 +103,7 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 - `.unitypackage` では配布しない。Unity 6 は取り込み時に「署名されていない」と出し、
   `-upmPack` で署名できるのは `.tgz` だけなので。VCC 以外の利用者には署名済み `.tgz` を渡す。
 - 署名: ワークスペースの `Sign-Package.ps1`（リポジトリには置かない。メンテナーのアカウントに結びつくため）。
-  ワークスペースで `pwsh ./Sign-Package.ps1 [shiori-vrchat] -Username <email> -Organization 15668133757639`。`git archive HEAD` と同じ中身を Unity 6000.6 の `-upmPack` で署名し、
+  ワークスペースで `pwsh ./Sign-Package.ps1 -Username <email> -Organization 15668133757639`（引数なしでコアと shiori-vrchat の両方、パスワードは 1 回）。`git archive HEAD` と同じ中身を Unity 6000.6 の `-upmPack` で署名し、
   `../dist/<name>-<version>.tgz` に置く。Unity アカウントのパスワードが要る（Hub のログインでは足りない）。
   確認済み: Unity 6 は tarball として入れると Valid、`Packages/` に展開した埋め込みパッケージ（VCC の入れ方）は
   Unchecked で署名を見ない。2022.3 は tarball を問題なく入れられる（Unsigned 扱い）。
