@@ -181,10 +181,14 @@ namespace Shiori.Editor
         private static async void FillExtensionSteps(VisualElement root, ShioriSession session, Label status)
         {
             if (session.Extensions.Count == 0) return;
+            // Each step asks git (and the merge / LFS tools), which takes a moment; show the section right away.
+            root.Add(SectionTitle(L10n.Tr("settings.ext.title")));
+            root.Add(Help(L10n.Tr("status.checking")));
             try
             {
                 var steps = await session.EvaluateExtensionStepsAsync(CancellationToken.None);
                 if (root.panel == null) return;
+                root.Clear();
                 if (steps.Count == 0) return;
                 root.Add(SectionTitle(L10n.Tr("settings.ext.title")));
                 foreach (var step in steps)
@@ -196,6 +200,7 @@ namespace Shiori.Editor
             }
             catch (Exception ex)
             {
+                root.Clear();
                 status.text = L10n.Tr("error.generic", ex.Message);
             }
         }
