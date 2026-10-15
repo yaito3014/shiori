@@ -11,7 +11,8 @@ Each release is described for the people who use it. The developer-level detail 
   今は両方を合わせた保存を作ります。シーンやプレハブは Unity の道具（UnityYAMLMerge）がオブジェクトごとに合わせます。
   合わせられなかったファイルは、ファイルごとに「自分のを使う」「相手のを使う」を選べます。「やめる」で受信する前に戻せます。
 - **はじめの設定に「Unity のマージ設定」を足しました。** すでに使っているプロジェクトでは、かんたんモードの上に出る
-  「設定する」を押してください。Unity を入れ替えたときは「更新する」が出ます。
+  「設定する」を押してください。Unity を入れ替えたときは「更新する」が出ます。「使わない」も選べ、あとから
+  `Project Settings > Shiori` の「使うのをやめる」でやめることもできます（確認があります）。
 - 保存していない変更があるときの受信は、確認のあと先に保存してから受信します。
 - 詳細モードのプルとマージも、競合したら止めて、ファイルごとに ours / theirs を選べるようになりました。
 - かんたんモードの上に出るお知らせ（まだの設定や、パッケージがそろっていないなど）を、詳細モードにも 1 行で出すようにしました。
@@ -29,7 +30,8 @@ Each release is described for the people who use it. The developer-level detail 
   combines both. Scenes and prefabs are merged object by object by Unity's UnityYAMLMerge. Files it cannot combine are
   decided one by one (自分 / 相手), and やめる goes back to before the 受信.
 - **New setup step 「Unity のマージ設定」**: projects already set up get a 設定する button at the top of simple mode, and
-  更新する after a Unity upgrade.
+  更新する after a Unity upgrade. It is optional: 使わない skips it, and 「使うのをやめる」 in Project Settings > Shiori
+  turns it off again after a confirmation.
 - 受信 with unsaved changes now saves them first, after asking.
 - Detail mode's pull and merge stop on conflicts and let you pick ours / theirs per file.
 - The notices at the top of simple mode (pending setup, packages out of sync, ...) now also appear in detail mode, one

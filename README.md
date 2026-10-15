@@ -50,7 +50,9 @@ Unity 2022.3 でもそのまま入れられます。
 2. プロジェクト設定（Asset Serialization = Force Text、Version Control = Visible Meta Files）
 3. 履歴に含めないもの（`.gitignore` / `.gitattributes` に Shiori のブロックを追記。既存の内容は残します）
 4. Unity のマージ設定（Unity の UnityYAMLMerge を git のマージドライバーにします。`.git/config` と
-   `.gitattributes` の `shiori-merge` ブロックに書きます。Unity を入れ替えたときは、かんたんモードに「更新する」が出ます）
+   `.gitattributes` の `shiori-merge` ブロックに書きます。Unity を入れ替えたときは、かんたんモードに「更新する」が出ます。
+   任意です。「使わない」も選べ、あとから `Project Settings > Shiori` の「使うのをやめる」（確認のあと）でやめられます。
+   やめると、シーンやプレハブは git のふつうの行単位のマージで合わせます）
 5. 大きなファイルの設定（任意。画像・モデル・音・動画を Git LFS で保存します。`git lfs install --local` と
    `.gitattributes` の `shiori-lfs` ブロック。「使わない」も選べ、その選択は `ProjectSettings/Shiori.json` に残ります）
 6. 拡張パッケージの手順（入っていれば）
