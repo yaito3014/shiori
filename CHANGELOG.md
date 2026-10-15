@@ -21,6 +21,7 @@ Each release is described for the people who use it. The developer-level detail 
   押してください。これから保存するファイルから LFS に入り、それまでの履歴は変えません。
 - LFS を使うプロジェクトなのにこの PC で LFS が使えないときは、受信・戻す・バリエーションの切り替えを止め、
   そろえ方を案内します（画像などの代わりに中身のないファイルが入るのを防ぐため）。
+- 大きなファイルの設定は、あとから `Project Settings > Shiori` の「使うのをやめる」でやめられます（確認があります）。
 
 ### English
 
@@ -37,6 +38,8 @@ Each release is described for the people who use it. The developer-level detail 
   Git LFS. Projects already set up get 設定する / 使わない at the top. Only new saves go to LFS; history is not rewritten.
 - When a project uses Git LFS but this PC cannot run it, 受信, 戻す and switching variations wait until it is set up,
   so placeholder pointer files never replace textures and models.
+- Git LFS can be turned off again from Project Settings > Shiori (「使うのをやめる」, after a confirmation). Files now in
+  LFS are staged again as ordinary files and go into the next save.
 
 ## [0.5.0] - 2026-10-14
 
