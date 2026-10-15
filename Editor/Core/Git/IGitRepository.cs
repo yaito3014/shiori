@@ -213,6 +213,9 @@ namespace Shiori
         /// <summary>Writes a value into the repository's own <c>.git/config</c>.</summary>
         Task SetLocalConfigAsync(string key, string value, CancellationToken cancellationToken);
 
+        /// <summary>Removes a key from the repository's own <c>.git/config</c>; nothing happens when it is unset.</summary>
+        Task UnsetLocalConfigAsync(string key, CancellationToken cancellationToken);
+
         /// <summary>A value from any config scope (<c>git config --get</c>), or null when unset.</summary>
         Task<string> GetConfigAsync(string key, CancellationToken cancellationToken);
 

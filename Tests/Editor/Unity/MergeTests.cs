@@ -146,6 +146,36 @@ namespace Shiori.Editor.Tests
             Assert.That(missing.Result.Done, Is.True, "without the tool there is nothing to set up, and the wizard must not stop");
         }
 
+        [UnityTest]
+        public IEnumerator SetupStep_CanBeSkipped_AndTurnedOnAgain()
+        {
+            Assume.That(File.Exists(MergeSetupStep.ToolPath), Is.True, "this editor ships UnityYAMLMerge");
+            InitRepository();
+            Directory.CreateDirectory(Path.Combine(_root, "ProjectSettings"));
+            var session = new ShioriSession(_root);
+            var core = new CoreSetupSteps();
+            var context = session.ContextFor(core);
+            var step = new MergeSetupStep(() => _repo, context);
+
+            var first = step.EvaluateAsync(None);
+            yield return Await(first);
+            Assert.That(first.Result.Actions.Select(a => a.Label), Is.EqualTo(new[] { L10n.Tr("step.merge.apply"), L10n.Tr("step.merge.skip") }));
+
+            yield return Await(first.Result.Actions[1].Run(None));
+            Assert.That(File.ReadAllText(Path.Combine(_root, "ProjectSettings", "Shiori.json")), Does.Contain("mergeDriver"));
+            var skipped = step.EvaluateAsync(None);
+            yield return Await(skipped);
+            Assert.That(skipped.Result.Done, Is.True);
+            Assert.That(skipped.Result.Message, Is.EqualTo(L10n.Tr("step.merge.skipped")));
+
+            yield return Await(skipped.Result.Actions.Single().Run(None));
+            var used = step.EvaluateAsync(None);
+            yield return Await(used);
+            Assert.That(used.Result.Message, Is.EqualTo(L10n.Tr("step.merge.ok")));
+            Assert.That(used.Result.Actions.Single().Label, Is.EqualTo(L10n.Tr("step.merge.disable")), "it can be turned off again (after a confirmation)");
+            Assert.That(File.ReadAllText(Path.Combine(_root, "ProjectSettings", "Shiori.json")), Does.Not.Contain("mergeDriver"));
+        }
+
         [Test]
         public void CoreSteps_AreFoundWithTheExtensions()
         {

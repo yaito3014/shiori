@@ -111,7 +111,7 @@ namespace Shiori.Editor.Tests
             var labels = panel.Query<Label>().ToList().Where(l => !l.ClassListContains("shiori-hidden")).Select(l => l.text);
             Assert.That(labels, Is.EqualTo(new[] { L10n.Tr("step.merge.title") }), "only the heading; the explanation is the tooltip");
             Assert.That(panel.tooltip, Does.StartWith(L10n.Tr("step.merge.explain")));
-            Assert.That(panel.Query<Button>().ToList().Select(b => b.text), Is.EqualTo(new[] { L10n.Tr("step.merge.apply") }));
+            Assert.That(panel.Query<Button>().ToList().Select(b => b.text), Is.EqualTo(new[] { L10n.Tr("step.merge.apply"), L10n.Tr("step.merge.skip") }));
         }
 
         [UnityTest]

@@ -22,6 +22,9 @@ namespace Shiori
 
         /// <summary>The project is inside another repository; the first-save step explains it.</summary>
         RootMismatch,
+
+        /// <summary>The project chose to merge scenes and prefabs with git's own line merge.</summary>
+        Skipped,
     }
 
     /// <summary>
@@ -73,9 +76,14 @@ namespace Shiori
             return "\"" + toolPath.Replace('\\', '/') + "\" merge -h --force --fallback none %O %B %A %A";
         }
 
-        public static async Task<MergeDriverState> EvaluateAsync(IGitRepository repository, string toolPath, CancellationToken cancellationToken)
+        /// <summary>
+        /// The state for this PC. <paramref name="skipped"/> is the project's "go without" choice; it counts only while
+        /// the project's .gitattributes has no <c>shiori-merge</c> block (a block another PC wrote wins).
+        /// </summary>
+        public static async Task<MergeDriverState> EvaluateAsync(IGitRepository repository, string toolPath, CancellationToken cancellationToken, bool skipped = false)
         {
             if (repository == null) throw new ArgumentNullException(nameof(repository));
+            if (skipped && ReadBlock(repository.WorkingDirectory) == null) return MergeDriverState.Skipped;
             if (string.IsNullOrEmpty(toolPath) || !File.Exists(toolPath)) return MergeDriverState.ToolMissing;
 
             var probe = await repository.ProbeAsync(cancellationToken).ConfigureAwait(false);
@@ -105,6 +113,19 @@ namespace Shiori
             await repository.SetLocalConfigAsync(NameKey, DriverDescription, cancellationToken).ConfigureAwait(false);
             await repository.SetLocalConfigAsync(DriverKey, DriverCommand(toolPath), cancellationToken).ConfigureAwait(false);
             ManagedBlockWriter.UpsertFile(Path.Combine(repository.WorkingDirectory, ".gitattributes"), BlockId, GitAttributes);
+        }
+
+        /// <summary>
+        /// Goes back to git's own line merge for scenes and prefabs: removes the driver from .git/config and the block
+        /// from .gitattributes. The core block still names the driver for .unity / .prefab / .asset; git falls back to
+        /// its text merge for a driver that is not defined.
+        /// </summary>
+        public static async Task DisableAsync(IGitRepository repository, CancellationToken cancellationToken)
+        {
+            if (repository == null) throw new ArgumentNullException(nameof(repository));
+            await repository.UnsetLocalConfigAsync(DriverKey, cancellationToken).ConfigureAwait(false);
+            await repository.UnsetLocalConfigAsync(NameKey, cancellationToken).ConfigureAwait(false);
+            ManagedBlockWriter.RemoveFile(Path.Combine(repository.WorkingDirectory, ".gitattributes"), BlockId);
         }
 
         private static IReadOnlyList<string> ReadBlock(string root)

@@ -169,6 +169,30 @@ namespace Shiori.Tests
         }
 
         [Test]
+        public void DriverSetup_CanBeTurnedOff_AndSkippedOnlyWithoutTheBlock()
+        {
+            using (var tools = new TempDirectory("shiori-tool"))
+            {
+                tools.WriteText("UnityYAMLMerge.exe", "stand-in");
+                var tool = tools.File("UnityYAMLMerge.exe");
+                _dir.WriteText(".gitattributes", "*.png binary\n");
+                Assert.That(MergeDriverSetup.EvaluateAsync(_repo, tool, None, skipped: true).GetAwaiter().GetResult(), Is.EqualTo(MergeDriverState.Skipped));
+
+                MergeDriverSetup.ApplyAsync(_repo, tool, None).GetAwaiter().GetResult();
+                Assert.That(MergeDriverSetup.EvaluateAsync(_repo, tool, None, skipped: true).GetAwaiter().GetResult(), Is.EqualTo(MergeDriverState.Ready),
+                    "a block in the project wins over an old choice");
+
+                MergeDriverSetup.DisableAsync(_repo, None).GetAwaiter().GetResult();
+                Assert.That(_repo.GetLocalConfigAsync(MergeDriverSetup.DriverKey, None).GetAwaiter().GetResult(), Is.Null);
+                Assert.That(_repo.GetLocalConfigAsync(MergeDriverSetup.NameKey, None).GetAwaiter().GetResult(), Is.Null);
+                Assert.That(_dir.ReadText(".gitattributes").TrimEnd('\r', '\n'), Is.EqualTo("*.png binary"), "only Shiori's block goes");
+                Assert.That(MergeDriverSetup.EvaluateAsync(_repo, tool, None, skipped: true).GetAwaiter().GetResult(), Is.EqualTo(MergeDriverState.Skipped));
+                Assert.That(MergeDriverSetup.EvaluateAsync(_repo, tool, None).GetAwaiter().GetResult(), Is.EqualTo(MergeDriverState.Missing));
+                Assert.DoesNotThrow(() => MergeDriverSetup.DisableAsync(_repo, None).GetAwaiter().GetResult(), "turning off twice is harmless");
+            }
+        }
+
+        [Test]
         public void DriverSetup_BeforeTheFirstSave_CreatesTheRepository()
         {
             using (var fresh = new TempDirectory("shiori-fresh"))

@@ -482,6 +482,14 @@ namespace Shiori
             return ReadConfigAsync(key, cancellationToken, "--local");
         }
 
+        public async Task UnsetLocalConfigAsync(string key, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("key is required", nameof(key));
+            var result = await RunAllowingFailureAsync(cancellationToken, "config", "--local", "--unset-all", key).ConfigureAwait(false);
+            // Exit code 5 means the key was not set.
+            if (!result.Succeeded && result.ExitCode != 5) throw new GitException("config --local --unset-all " + key, result.ExitCode, result.Stderr);
+        }
+
         public Task<string> GetConfigAsync(string key, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("key is required", nameof(key));

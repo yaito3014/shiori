@@ -166,6 +166,13 @@ namespace Shiori.Editor
             ["step.merge.outdated"] = "マージの設定が今の Unity と合っていません（Unity を入れ替えたときなど）。更新してください。",
             ["step.merge.notool"] = "この Unity には UnityYAMLMerge が見つかりません。合わせることはできますが、シーンやプレハブはファイルごとに選ぶことが増えます。",
             ["step.merge.mismatch"] = "プロジェクトがほかのリポジトリの中にあるため、設定できません。",
+            ["step.merge.skip"] = "使わない",
+            ["step.merge.use"] = "使う",
+            ["step.merge.disable"] = "使うのをやめる",
+            ["step.merge.skipped"] = "シーンやプレハブは、Unity の道具を使わずに合わせます。",
+            ["merge.disable.title"] = "Unity のマージ設定をやめますか？",
+            ["merge.disable.body"] = "これからは、2 台の PC で同じシーンやプレハブを変えたとき、Unity の道具を使わずに合わせます。別々のオブジェクトを変えただけでも合わせられないことが増え、そのときはファイルごとに「自分 / 相手」を選びます。\n\n.gitattributes から Shiori の行を、この PC の git の設定から Unity の道具を消し、「使わない」をプロジェクトの設定に残します。ファイルの中身は変わりません。",
+            ["merge.disable.ok"] = "やめる",
 
             ["step.lfs.title"] = "大きなファイルの設定",
             ["step.lfs.explain"] = "画像・モデル・音・動画を、ほかのファイルとは別の仕組み（Git LFS）で保存します。履歴が重くなりにくく、GitHub の「1 ファイル 100 MB まで」も越えられます。これから保存するファイルから使います。.gitattributes とこの PC の git の設定に書きます。使わなくてもかまいません。",
