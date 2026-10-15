@@ -19,7 +19,7 @@ namespace Shiori.Editor
 
         public override IReadOnlyList<SetupStep> CreateSetupSteps(IExtensionContext context)
         {
-            return new SetupStep[] { new MergeSetupStep(() => context.Repository) };
+            return new SetupStep[] { new MergeSetupStep(() => context.Repository), new LargeFileSetupStep(context) };
         }
     }
 

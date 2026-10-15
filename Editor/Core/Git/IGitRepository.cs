@@ -213,6 +213,24 @@ namespace Shiori
         /// <summary>Writes a value into the repository's own <c>.git/config</c>.</summary>
         Task SetLocalConfigAsync(string key, string value, CancellationToken cancellationToken);
 
+        /// <summary>A value from any config scope (<c>git config --get</c>), or null when unset.</summary>
+        Task<string> GetConfigAsync(string key, CancellationToken cancellationToken);
+
+        /// <summary>The absolute path of a file inside the git directory (<c>git rev-parse --git-path</c>), honouring core.hooksPath.</summary>
+        Task<string> GetGitPathAsync(string path, CancellationToken cancellationToken);
+
+        /// <summary>True when the git-lfs command runs (<c>git lfs version</c>).</summary>
+        Task<bool> HasLfsAsync(CancellationToken cancellationToken);
+
+        /// <summary><c>git lfs install --local</c>: the lfs filter in .git/config and the hooks that upload LFS files on push.</summary>
+        Task InstallLfsAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git lfs pull</c>: downloads the LFS files of the current version and replaces working-tree files that are
+        /// still pointers. Rewrites the working tree; network.
+        /// </summary>
+        Task PullLfsAsync(CancellationToken cancellationToken);
+
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
 

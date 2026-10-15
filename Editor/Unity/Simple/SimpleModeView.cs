@@ -34,6 +34,9 @@ namespace Shiori.Editor
         private readonly VisualElement _extensionNotices;
         private readonly ConflictPanel _mergePanel;
         private MergeState _merge = MergeState.None;
+
+        /// <summary>The project uses Git LFS and this PC cannot run it; see <see cref="LargeFileGuard"/>.</summary>
+        private bool _largeFilesBlocked;
         private readonly TextField _message;
         private readonly Label _placeholder;
         private readonly Label _memoCounter;
@@ -267,6 +270,7 @@ namespace Shiori.Editor
                 _sendStatus = await SendRunner.GetStatusAsync(_repo, ct);
                 // What the last fetch saw; computed locally. The background check below refreshes it.
                 _comparison = _sendStatus.HasRemote ? await ReceiveRunner.CompareAsync(_repo, ct) : null;
+                _largeFilesBlocked = await LargeFileGuard.IsBlockedAsync(_session, ct);
 
                 SetError(null);
                 RenderSaveStatus();
@@ -321,6 +325,7 @@ namespace Shiori.Editor
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
                 _merge = await MergeRunner.GetStateAsync(_repo, CancellationToken.None);
+                _largeFilesBlocked = await LargeFileGuard.IsBlockedAsync(_session, CancellationToken.None);
                 SetError(null);
                 RenderSaveStatus();
                 RenderMerge();
@@ -515,7 +520,7 @@ namespace Shiori.Editor
         {
             var selected = SelectedHash;
             var isCurrentAndClean = selected != null && selected == _head && _status != null && !_status.HasChanges;
-            _restoreButton.SetEnabled(selected != null && !isCurrentAndClean && !_merge.InProgress);
+            _restoreButton.SetEnabled(selected != null && !isCurrentAndClean && !_merge.InProgress && !_largeFilesBlocked);
             _restoreButton.tooltip = isCurrentAndClean ? L10n.Tr("restore.nothing") : L10n.Tr("restore.tooltip");
         }
 
@@ -593,6 +598,7 @@ namespace Shiori.Editor
             try
             {
                 var ct = CancellationToken.None;
+                if (!await LargeFileGuard.AllowAsync(_session, ct)) return;
                 _status = await _repo.GetStatusAsync(ct);
                 RenderSaveStatus();
                 var saveFirst = _status.HasChanges;
@@ -675,8 +681,10 @@ namespace Shiori.Editor
             var free = !_merge.InProgress;
             _message.SetEnabled(free);
             _sendRow.SetEnabled(free);
-            _variationPanel.SetEnabled(free);
-            _asidePanel.SetEnabled(free);
+            // 送信 only uploads; everything that takes files out of history waits for Git LFS.
+            _receiveButton.SetEnabled(!_largeFilesBlocked);
+            _variationPanel.SetEnabled(free && !_largeFilesBlocked);
+            _asidePanel.SetEnabled(free && !_largeFilesBlocked);
             UpdateRestoreButton();
         }
 
@@ -930,6 +938,7 @@ namespace Shiori.Editor
             try
             {
                 var ct = CancellationToken.None;
+                if (!await LargeFileGuard.AllowAsync(_session, ct)) return;
                 _status = await _repo.GetStatusAsync(ct);
                 RenderSaveStatus();
                 if (_status.HasChanges)

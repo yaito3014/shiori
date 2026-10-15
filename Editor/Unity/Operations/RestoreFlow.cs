@@ -33,6 +33,7 @@ namespace Shiori.Editor
         public static async Task<RestoreOutcome> RunAsync(ShioriSession session, Snapshot target, string memo, CancellationToken cancellationToken)
         {
             var repository = session.Repository;
+            if (!await LargeFileGuard.AllowAsync(session, cancellationToken)) return null;
             // In-memory edits are invisible to git and would be written over the restored files later;
             // flush them first (scenes with a prompt, assets silently).
             if (!UnitySaver.SaveForRestoreOrCancel()) return null;

@@ -29,6 +29,7 @@ namespace Shiori.Editor
         public static async Task<SwitchResult> SwitchAsync(ShioriSession session, BranchInfo target, string memo, bool gitTerms, CancellationToken cancellationToken)
         {
             var repository = session.Repository;
+            if (!await LargeFileGuard.AllowAsync(session, cancellationToken)) return null;
             // Open scenes may be replaced by the other variation's files; their edits must reach disk first.
             if (!UnitySaver.SaveForRestoreOrCancel()) return null;
 
@@ -102,6 +103,7 @@ namespace Shiori.Editor
         /// <summary>Detail mode only: asks, then merges <paramref name="source"/> into the current branch. Null when cancelled.</summary>
         public static async Task<MergeResult> MergeAsync(ShioriSession session, BranchInfo source, string currentBranch, CancellationToken cancellationToken)
         {
+            if (!await LargeFileGuard.AllowAsync(session, cancellationToken)) return null;
             if (!UnitySaver.SaveForRestoreOrCancel()) return null;
             if (!EditorUtility.DisplayDialog(
                     L10n.Tr("branch.merge.title"),

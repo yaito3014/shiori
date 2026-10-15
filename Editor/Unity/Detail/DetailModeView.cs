@@ -46,6 +46,9 @@ namespace Shiori.Editor
         private readonly ConflictPanel _mergePanel;
         private MergeState _merge = MergeState.None;
 
+        /// <summary>The project uses Git LFS and this PC cannot run it; see <see cref="LargeFileGuard"/>.</summary>
+        private bool _largeFilesBlocked;
+
         private readonly TextField _commitMessage;
         private readonly Button _commitButton;
         private readonly Button _pushButton;
@@ -383,6 +386,7 @@ namespace Shiori.Editor
                 _branches.AddRange(await _repo.GetBranchesAsync(ct));
                 _sendStatus = await SendRunner.GetStatusAsync(_repo, ct);
                 _comparison = _sendStatus.HasRemote ? await ReceiveRunner.CompareAsync(_repo, ct) : null;
+                _largeFilesBlocked = await LargeFileGuard.IsBlockedAsync(_session, ct);
 
                 SetError(null);
                 RenderFiles();
@@ -418,6 +422,7 @@ namespace Shiori.Editor
             {
                 _status = await _repo.GetStatusAsync(CancellationToken.None);
                 _merge = await MergeRunner.GetStateAsync(_repo, CancellationToken.None);
+                _largeFilesBlocked = await LargeFileGuard.IsBlockedAsync(_session, CancellationToken.None);
                 SplitChanges();
                 SetError(null);
                 RenderFiles();
@@ -562,6 +567,7 @@ namespace Shiori.Editor
             SetNotice(null);
             try
             {
+                if (!await LargeFileGuard.AllowAsync(_session, CancellationToken.None)) return;
                 ReceiveResult result;
                 using (GitActivity.Begin(L10n.Tr("receive.progress")))
                 {
@@ -1054,7 +1060,7 @@ namespace Shiori.Editor
             _commitTitle.text = snapshot.Message;
             _commitMeta.text = L10n.Tr("detail.log.meta", snapshot.ShortHash, snapshot.Time.ToLocalTime().DateTime, snapshot.Author);
             var isCurrentAndClean = snapshot.Hash == _head && _status != null && !_status.HasChanges;
-            _commitRestore.SetEnabled(!isCurrentAndClean);
+            _commitRestore.SetEnabled(!isCurrentAndClean && !_merge.InProgress && !_largeFilesBlocked);
             _commitRestore.tooltip = isCurrentAndClean ? L10n.Tr("restore.nothing") : L10n.Tr("detail.log.restore.tooltip");
             _commitFiles.RefreshItems();
         }
@@ -1121,6 +1127,7 @@ namespace Shiori.Editor
             SetNotice(null);
             try
             {
+                if (!await LargeFileGuard.AllowAsync(_session, CancellationToken.None)) return;
                 if (!EditorUtility.DisplayDialog(
                         L10n.Tr("detail.stash.dialog.title"),
                         L10n.Tr("detail.stash.dialog.body", stash.Selector, stash.Message),
@@ -1315,11 +1322,13 @@ namespace Shiori.Editor
             var merging = _merge.InProgress;
             _commitButton.SetEnabled(!merging || _merge.ReadyToFinish);
             _pushButton.SetEnabled(!merging);
-            _pullButton.SetEnabled(!merging);
-            _commitRestore.SetEnabled(!merging);
-            _branchList.SetEnabled(!merging);
+            // Push only uploads; everything that takes files out of history waits for Git LFS.
+            var free = !merging && !_largeFilesBlocked;
+            _pullButton.SetEnabled(free);
+            _commitRestore.SetEnabled(free);
+            _branchList.SetEnabled(free);
             _branchCreate.SetEnabled(!merging && _head != null);
-            _stashList.SetEnabled(!merging);
+            _stashList.SetEnabled(free);
         }
 
         private async void Resolve(IReadOnlyList<ConflictEntry> entries, ConflictSide side)

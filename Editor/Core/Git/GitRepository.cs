@@ -479,10 +479,47 @@ namespace Shiori
         public Task<string> GetLocalConfigAsync(string key, CancellationToken cancellationToken)
         {
             if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("key is required", nameof(key));
-            return GetConfigAsync(key, cancellationToken, "--local");
+            return ReadConfigAsync(key, cancellationToken, "--local");
         }
 
-        private async Task<string> GetConfigAsync(string key, CancellationToken cancellationToken, string scope = null)
+        public Task<string> GetConfigAsync(string key, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(key)) throw new ArgumentException("key is required", nameof(key));
+            return ReadConfigAsync(key, cancellationToken);
+        }
+
+        public async Task<string> GetGitPathAsync(string path, CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrWhiteSpace(path)) throw new ArgumentException("path is required", nameof(path));
+            var result = await RunAllowingFailureAsync(cancellationToken, "rev-parse", "--git-path", path).ConfigureAwait(false);
+            if (!result.Succeeded) return null;
+            var value = result.Stdout.TrimEnd('\r', '\n');
+            if (value.Length == 0) return null;
+            return Path.IsPathRooted(value) ? Path.GetFullPath(value) : Path.GetFullPath(Path.Combine(WorkingDirectory, value));
+        }
+
+        /// <summary>Once seen, git-lfs stays; a missing one is looked for again (the user may install it meanwhile).</summary>
+        private bool _hasLfs;
+
+        public async Task<bool> HasLfsAsync(CancellationToken cancellationToken)
+        {
+            if (_hasLfs) return true;
+            var result = await RunAllowingFailureAsync(cancellationToken, "lfs", "version").ConfigureAwait(false);
+            _hasLfs = result.Succeeded;
+            return _hasLfs;
+        }
+
+        public async Task InstallLfsAsync(CancellationToken cancellationToken)
+        {
+            await RunAsync(cancellationToken, "lfs", "install", "--local").ConfigureAwait(false);
+        }
+
+        public async Task PullLfsAsync(CancellationToken cancellationToken)
+        {
+            await RunNetworkAsync(FetchTimeout, cancellationToken, "lfs", "pull").ConfigureAwait(false);
+        }
+
+        private async Task<string> ReadConfigAsync(string key, CancellationToken cancellationToken, string scope = null)
         {
             var result = scope == null
                 ? await RunAllowingFailureAsync(cancellationToken, "config", "--get", key).ConfigureAwait(false)
