@@ -43,7 +43,7 @@ namespace Shiori.Editor
                     // Only Shiori's own block can be taken out again; the user's own LFS lines are theirs.
                     return status.HasBlock
                         ? new SetupStepView(true, L10n.Tr("step.lfs.ok"), null, new[] { new SetupStepAction(L10n.Tr("step.lfs.disable"), DisableAsync) })
-                        : new SetupStepView(true, L10n.Tr("step.lfs.ok"));
+                        : new SetupStepView(true, L10n.Tr("step.lfs.ok.own"));
                 case LargeFileState.Skipped:
                     return new SetupStepView(true, L10n.Tr("step.lfs.skipped"), null, new[] { Apply("step.lfs.use") });
                 case LargeFileState.Outdated:
