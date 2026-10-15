@@ -84,6 +84,7 @@ namespace Shiori.Editor.Tests
             var used = Step().EvaluateAsync(None);
             yield return Await(used);
             Assert.That(used.Result.Message, Is.EqualTo(L10n.Tr("step.lfs.ok")));
+            Assert.That(used.Result.Actions.Single().Label, Is.EqualTo(L10n.Tr("step.lfs.disable")), "it can be turned off again (after a confirmation)");
             Assert.That(File.ReadAllText(Path.Combine(_root, "ProjectSettings", "Shiori.json")), Does.Not.Contain("largeFiles"));
         }
 

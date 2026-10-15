@@ -44,10 +44,14 @@ namespace Shiori
         /// </summary>
         public bool Blocked => UsedByProject && (State == LargeFileState.ToolMissing || State == LargeFileState.NeedsInstall);
 
-        public LargeFileStatus(LargeFileState state, bool usedByProject)
+        /// <summary>Shiori's <c>shiori-lfs</c> block is in .gitattributes, so Shiori can take it out again.</summary>
+        public bool HasBlock { get; }
+
+        public LargeFileStatus(LargeFileState state, bool usedByProject, bool hasBlock = false)
         {
             State = state;
             UsedByProject = usedByProject;
+            HasBlock = hasBlock;
         }
     }
 
@@ -109,8 +113,8 @@ namespace Shiori
 
             var block = text == null ? null : ManagedBlockWriter.ReadBlock(text, BlockId);
             if (block == null) return new LargeFileStatus(used ? LargeFileState.Ready : LargeFileState.NotSetUp, used);
-            if (!SameLines(block, GitAttributes)) return new LargeFileStatus(LargeFileState.Outdated, used);
-            return new LargeFileStatus(LargeFileState.Ready, used);
+            if (!SameLines(block, GitAttributes)) return new LargeFileStatus(LargeFileState.Outdated, used, true);
+            return new LargeFileStatus(LargeFileState.Ready, used, true);
         }
 
         /// <summary>
@@ -142,6 +146,26 @@ namespace Shiori
             // Without a 送信先 there is nowhere to download from.
             if (await repository.GetRemoteUrlAsync(cancellationToken).ConfigureAwait(false) == null) return;
             await repository.PullLfsAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Stops using Git LFS for new saves: removes Shiori's block, then stages <paramref name="lfsFiles"/> (from
+        /// <see cref="IGitRepository.ListLfsFilesAsync"/>, taken before) again as ordinary files, so the next save
+        /// records them in git. Without that, the current version would keep LFS pointers that no attribute smudges any
+        /// more, and taking it out later would write pointer text. Only the index changes; files the user's own lines
+        /// still send through LFS stay in LFS. Earlier saves are not rewritten.
+        /// </summary>
+        public static async Task DisableAsync(IGitRepository repository, IReadOnlyList<string> lfsFiles, CancellationToken cancellationToken)
+        {
+            if (repository == null) throw new ArgumentNullException(nameof(repository));
+            ManagedBlockWriter.RemoveFile(Path.Combine(repository.WorkingDirectory, ".gitattributes"), BlockId);
+            var present = new List<string>();
+            foreach (var path in lfsFiles ?? Array.Empty<string>())
+            {
+                // Deleted files have nothing to stage again; the next save records the deletion.
+                if (File.Exists(Path.Combine(repository.WorkingDirectory, path))) present.Add(path);
+            }
+            await repository.RenormalizeAsync(present, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>True when a non-comment line of .gitattributes sends files through the lfs filter.</summary>

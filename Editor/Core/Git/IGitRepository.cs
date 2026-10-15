@@ -231,6 +231,15 @@ namespace Shiori
         /// </summary>
         Task PullLfsAsync(CancellationToken cancellationToken);
 
+        /// <summary>The paths of the current version stored in Git LFS (<c>git lfs ls-files -n</c>).</summary>
+        Task<IReadOnlyList<string>> ListLfsFilesAsync(CancellationToken cancellationToken);
+
+        /// <summary>
+        /// <c>git add --renormalize -- &lt;paths&gt;</c>: stages the files again through the current attributes (for example
+        /// as ordinary files after the lfs filter was removed). Changes only the index, never the working tree.
+        /// </summary>
+        Task RenormalizeAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken);
+
         /// <summary>Every file path in a commit's tree (<c>git ls-tree -r --name-only</c>).</summary>
         Task<IReadOnlyList<string>> GetTreePathsAsync(string revision, CancellationToken cancellationToken);
 

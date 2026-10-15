@@ -92,6 +92,24 @@ namespace Shiori.Tests
         }
 
         [Test]
+        public void Remove_UndoesUpsert_AndKeepsEverythingElse()
+        {
+            foreach (var user in new[] { "*.cs text\n", "*.cs text\r\n", "*.cs text" })
+            {
+                var with = ManagedBlockWriter.Upsert(user, "shiori-x", LinesA);
+                var without = ManagedBlockWriter.Remove(with, "shiori-x");
+                Assert.That(without.TrimEnd('\r', '\n'), Is.EqualTo("*.cs text"));
+                Assert.That(ManagedBlockWriter.ReadBlock(without, "shiori-x"), Is.Null);
+            }
+
+            var middle = ManagedBlockWriter.Upsert(ManagedBlockWriter.Upsert("a\n", "shiori-x", LinesA), "shiori-y", LinesB);
+            var kept = ManagedBlockWriter.Remove(middle, "shiori-x");
+            Assert.That(ManagedBlockWriter.ReadBlock(kept, "shiori-y"), Is.EqualTo(LinesB), "other blocks stay");
+            Assert.That(kept, Does.StartWith("a\n"));
+            Assert.That(ManagedBlockWriter.Remove("a\n", "shiori-x"), Is.EqualTo("a\n"), "nothing to remove");
+        }
+
+        [Test]
         public void ShioriBlocks_ContainTheSpecifiedEntries()
         {
             Assert.That(ShioriBlocks.GitIgnore, Does.Contain("[Ll]ibrary/"));

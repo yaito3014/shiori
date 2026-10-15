@@ -108,6 +108,42 @@ namespace Shiori.Tests
         }
 
         [Test]
+        public void Disable_StagesLfsFilesAsOrdinaryFiles_WithoutTouchingThem()
+        {
+            RequireLfs();
+            InitRepository();
+            _dir.WriteText(".gitattributes", "*.cs text\n");
+            LargeFileSetup.ApplyAsync(_repo, None).GetAwaiter().GetResult();
+            _dir.WriteText("Assets/a.png", "image bytes");
+            _dir.WriteText("Assets/gone.wav", "sound");
+            _repo.AddAllAsync(None).GetAwaiter().GetResult();
+            _repo.CommitAsync("save", None).GetAwaiter().GetResult();
+            File.Delete(_dir.File("Assets/gone.wav"));
+
+            var files = _repo.ListLfsFilesAsync(None).GetAwaiter().GetResult();
+            Assert.That(files, Is.EquivalentTo(new[] { "Assets/a.png", "Assets/gone.wav" }));
+            LargeFileSetup.DisableAsync(_repo, files, None).GetAwaiter().GetResult();
+
+            Assert.That(_dir.ReadText(".gitattributes").TrimEnd('\r', '\n'), Is.EqualTo("*.cs text"), "only Shiori's block goes");
+            Assert.That(_dir.ReadText("Assets/a.png"), Is.EqualTo("image bytes"), "the working tree is not touched");
+            var status = Evaluate(skipped: true);
+            Assert.That(status.State, Is.EqualTo(LargeFileState.Skipped));
+            Assert.That(status.Blocked, Is.False);
+
+            _repo.AddAllAsync(None).GetAwaiter().GetResult();
+            _repo.CommitAsync("back to ordinary files", None).GetAwaiter().GetResult();
+            Assert.That(Git("cat-file", "-p", "HEAD:Assets/a.png"), Is.EqualTo("image bytes"), "the next save records the real content");
+        }
+
+        [Test]
+        public void ListLfsFiles_IsEmptyBeforeTheFirstSave()
+        {
+            RequireLfs();
+            InitRepository();
+            Assert.That(_repo.ListLfsFilesAsync(None).GetAwaiter().GetResult(), Is.Empty);
+        }
+
+        [Test]
         public void MissingHook_NeedsInstall_AndBlocks()
         {
             RequireLfs();

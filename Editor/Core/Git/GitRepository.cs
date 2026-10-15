@@ -519,6 +519,25 @@ namespace Shiori
             await RunNetworkAsync(FetchTimeout, cancellationToken, "lfs", "pull").ConfigureAwait(false);
         }
 
+        public async Task<IReadOnlyList<string>> ListLfsFilesAsync(CancellationToken cancellationToken)
+        {
+            var paths = new List<string>();
+            // Before the first save there is no version to list.
+            if (await GetHeadAsync(cancellationToken).ConfigureAwait(false) == null) return paths;
+            var result = await RunAsync(cancellationToken, "lfs", "ls-files", "-n").ConfigureAwait(false);
+            foreach (var line in result.Stdout.Split('\n'))
+            {
+                var path = line.TrimEnd('\r');
+                if (path.Length > 0) paths.Add(path);
+            }
+            return paths;
+        }
+
+        public async Task RenormalizeAsync(IReadOnlyList<string> paths, CancellationToken cancellationToken)
+        {
+            await RunForPathsAsync(paths, cancellationToken, "add", "--renormalize").ConfigureAwait(false);
+        }
+
         private async Task<string> ReadConfigAsync(string key, CancellationToken cancellationToken, string scope = null)
         {
             var result = scope == null

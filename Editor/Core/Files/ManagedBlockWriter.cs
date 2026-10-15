@@ -98,6 +98,43 @@ namespace Shiori
             return sb.ToString();
         }
 
+        /// <summary>Removes the block <paramref name="blockId"/> from the file. Returns true when the file content changed.</summary>
+        public static bool RemoveFile(string filePath, string blockId)
+        {
+            if (!File.Exists(filePath)) return false;
+            var existing = File.ReadAllText(filePath, Utf8NoBom);
+            var updated = Remove(existing, blockId);
+            if (existing == updated) return false;
+            File.WriteAllText(filePath, updated, Utf8NoBom);
+            return true;
+        }
+
+        /// <summary>
+        /// Pure form of <see cref="RemoveFile"/>: drops the block with its line break, and the blank line
+        /// <see cref="Upsert(string, string, IReadOnlyList{string})"/> put before it when the block was last in the file.
+        /// </summary>
+        public static string Remove(string content, string blockId)
+        {
+            if (string.IsNullOrEmpty(content)) return content;
+            var startMarker = StartMarkerFor(blockId);
+            var endMarker = EndMarkerFor(blockId);
+            var start = FindLineStart(content, startMarker);
+            if (start < 0) return content;
+            var end = FindLineStart(content, endMarker, start);
+            if (end < 0) return content;
+
+            var before = content.Substring(0, start);
+            var after = content.Substring(end + endMarker.Length);
+            if (after.StartsWith("\r\n")) after = after.Substring(2);
+            else if (after.StartsWith("\n")) after = after.Substring(1);
+            if (after.Length == 0)
+            {
+                if (before.EndsWith("\r\n\r\n")) before = before.Substring(0, before.Length - 2);
+                else if (before.EndsWith("\n\n")) before = before.Substring(0, before.Length - 1);
+            }
+            return before + after;
+        }
+
         /// <summary>Returns the lines currently inside the core block, or null when there is no block.</summary>
         public static IReadOnlyList<string> ReadBlock(string content)
         {
