@@ -16,6 +16,11 @@ Each release is described for the people who use it. The developer-level detail 
 - 詳細モードのプルとマージも、競合したら止めて、ファイルごとに ours / theirs を選べるようになりました。
 - かんたんモードの上に出るお知らせ（まだの設定や、パッケージがそろっていないなど）を、詳細モードにも 1 行で出すようにしました。
   説明はマウスを乗せると出ます。
+- **大きなファイル（Git LFS）に対応しました。** はじめの設定に「大きなファイルの設定」を足しました（任意）。
+  画像・モデル・音・動画を Git LFS で保存します。すでに使っているプロジェクトでは、上に出る「設定する」か「使わない」を
+  押してください。これから保存するファイルから LFS に入り、それまでの履歴は変えません。
+- LFS を使うプロジェクトなのにこの PC で LFS が使えないときは、受信・戻す・バリエーションの切り替えを止め、
+  そろえ方を案内します（画像などの代わりに中身のないファイルが入るのを防ぐため）。
 
 ### English
 
@@ -28,6 +33,10 @@ Each release is described for the people who use it. The developer-level detail 
 - Detail mode's pull and merge stop on conflicts and let you pick ours / theirs per file.
 - The notices at the top of simple mode (pending setup, packages out of sync, ...) now also appear in detail mode, one
   line each with the heading and buttons; hover for the explanation.
+- **Git LFS support**: a new, optional setup step 「大きなファイルの設定」 stores images, models, audio and video through
+  Git LFS. Projects already set up get 設定する / 使わない at the top. Only new saves go to LFS; history is not rewritten.
+- When a project uses Git LFS but this PC cannot run it, 受信, 戻す and switching variations wait until it is set up,
+  so placeholder pointer files never replace textures and models.
 
 ## [0.5.0] - 2026-10-14
 

@@ -185,4 +185,3 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 - サムネイルの保存先（`refs/notes/shiori` か orphan ブランチか）
 - VPM リポジトリ（index.json）の公開手順と、`shiori-vrchat` への分割タイミング
 - 英語ローカライズを正式対応にする時期
-- LFS を「必須」にするか「推奨」に留めるか（M1 では検出と案内のみ）
