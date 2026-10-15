@@ -3,7 +3,7 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
-## [Unreleased]
+## [0.6.0] - 2026-10-15
 
 ### 日本語
 
@@ -23,6 +23,8 @@ Each release is described for the people who use it. The developer-level detail 
 - LFS を使うプロジェクトなのにこの PC で LFS が使えないときは、受信・戻す・バリエーションの切り替えを止め、
   そろえ方を案内します（画像などの代わりに中身のないファイルが入るのを防ぐため）。
 - 大きなファイルの設定は、あとから `Project Settings > Shiori` の「使うのをやめる」でやめられます（確認があります）。
+- 設定の説明は、今どうなっているかと、ボタンを押すとどう変わるかの両方を書くようにしました。
+  `Project Settings > Shiori` では、設定を確かめている間「確認中…」と出ます。
 
 ### English
 
@@ -42,6 +44,8 @@ Each release is described for the people who use it. The developer-level detail 
   so placeholder pointer files never replace textures and models.
 - Git LFS can be turned off again from Project Settings > Shiori (「使うのをやめる」, after a confirmation). Files now in
   LFS are staged again as ordinary files and go into the next save.
+- Setup messages now say both what is set now and what each button would change. Project Settings > Shiori shows
+  確認中… while it checks the steps.
 
 ## [0.5.0] - 2026-10-14
 
