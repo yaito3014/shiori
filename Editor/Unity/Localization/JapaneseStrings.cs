@@ -337,11 +337,11 @@ namespace Shiori.Editor
             ["detail.head"] = "HEAD",
             ["detail.unity.view"] = "Unity 表示",
             ["detail.unity.text"] = "テキスト",
-            ["detail.unity.view.tooltip"] = "GameObject・コンポーネント・プロパティごとに、何が変わったかを表示します。",
+            ["detail.unity.view.tooltip"] = "GameObject・コンポーネント（アニメーターコントローラーではレイヤー・ステート・遷移）・プロパティごとに、何が変わったかを表示します。",
             ["detail.unity.added"] = "追加",
             ["detail.unity.removed"] = "削除",
             ["detail.unity.changed"] = "変更",
-            ["detail.unity.none"] = "Unity から見た変更はありません（並び順や書式だけの違いです）。",
+            ["detail.unity.none"] = "Unity から見た変更はありません（並び順や書式、Animator ウィンドウでのノードの位置だけの違いです）。",
             ["detail.unity.loading"] = "読み込み中…",
 
             ["detail.files.title"] = "未ステージ（{0}）",

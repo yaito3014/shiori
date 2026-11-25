@@ -267,7 +267,9 @@ Material:
         {
             Assert.That(UnityDiffPresenter.IsSupported("Assets/a.prefab"), Is.True);
             Assert.That(UnityDiffPresenter.IsSupported("Assets/a.MAT"), Is.True);
+            Assert.That(UnityDiffPresenter.IsSupported("Assets/FX.controller"), Is.True);
             Assert.That(UnityDiffPresenter.IsSupported("Assets/a.unity"), Is.False, "scenes are not in the first version");
+            Assert.That(UnityDiffPresenter.IsSupported("Assets/a.anim"), Is.False, "animation clips need their own matching first");
             Assert.That(UnityDiffPresenter.IsSupported(null), Is.False);
 
             var none = UnityDiffPresenter.BuildRows(new UnityObjectChange[0]);

@@ -47,13 +47,13 @@ namespace Shiori.Editor
     }
 
     /// <summary>
-    /// The Unity view of a diff in detail mode (A3, read-only): which GameObjects, components and
-    /// material properties changed, instead of raw YAML lines. Only for file types whose YAML the
-    /// parser is known to read well; everything else keeps the text diff.
+    /// The Unity view of a diff in detail mode (A3, read-only): which GameObjects, components,
+    /// material properties, animator states and transitions changed, instead of raw YAML lines. Only for
+    /// file types whose YAML the diff is known to read well; everything else keeps the text diff.
     /// </summary>
     internal static class UnityDiffPresenter
     {
-        private static readonly HashSet<string> Supported = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".prefab", ".mat" };
+        private static readonly HashSet<string> Supported = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { ".prefab", ".mat", ".controller" };
 
         public static bool IsSupported(string path)
         {
