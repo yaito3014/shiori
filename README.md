@@ -6,7 +6,7 @@ Unity Editor の中で動く Git クライアントです。Git を知らない�
 
 - 対応 Unity: 2022.3 以上（Unity 6 を含む）
 - 必要なもの: git 2.30 以上（自動インストールはしません）
-- VRChat 固有の機能は別パッケージ `shiori-vrchat`（予定）に置きます。本パッケージは VRChat SDK に依存しません。
+- VRChat 固有の機能は別パッケージ [Shiori for VRChat](https://github.com/yaito3014/shiori-vrchat) に置いています。本パッケージは VRChat SDK に依存しません。
 
 ## インストール
 

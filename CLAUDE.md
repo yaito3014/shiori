@@ -3,9 +3,9 @@
 Unity Editor 内で動く Git クライアント。非プログラマー向けの「かんたんモード」と
 通常の Git クライアント相当の「詳細モード」を同じデータモデルの上に載せる。
 本リポジトリは Unity 汎用のコアパッケージ `com.yaito3014.shiori`。
-VRChat 固有の機能（VPM プリセット、かんたん UI の VRChat 向け調整）は
-将来 `shiori-vrchat` という別リポジトリ・別パッケージに置く。本リポジトリには
-VRChat SDK への依存を一切入れない。
+VRChat 固有の機能（VCC が入れたパッケージの除外、ビルドターゲットの表示、かんたん UI の VRChat 向け調整）は
+別リポジトリ・別パッケージの `shiori-vrchat`（`../shiori-vrchat`、`com.yaito3014.shiori.vrchat`）に置く。
+本リポジトリには VRChat SDK への依存を一切入れない。
 
 マイルストーン仕様はリポジトリに置かない（ユーザーが会話に貼り付けて渡す）。
 仕様に書かれていないことを実装する前に、まずユーザーに確認すること。
@@ -30,7 +30,7 @@ VRChat SDK への依存を一切入れない。
 ## リポジトリ構成
 
 ```
-shiori-unity/
+shiori/
   package.json              # com.yaito3014.shiori（ルートがパッケージ本体）
   README.md
   CHANGELOG.md
@@ -44,7 +44,6 @@ shiori-unity/
     Editor/
       Core/                 # Shiori.Core.Tests.asmdef（NUnit、Unity API 不使用）
       Unity/                # Shiori.Editor.Tests.asmdef
-  Samples~/
   Tools~/                   # 開発用スクリプト（配布対象外）
     New-DevProject.ps1      # 検証用 Unity プロジェクトをリポジトリの外に生成する
     Test-DevProject.ps1     # 検証用プロジェクトで EditMode テストを回し、結果を要約する
@@ -183,5 +182,4 @@ pwsh Tools~/Test-DevProject.ps1 -UnityVersion 2022.3.22f1 -CompileOnly
 次の点は未決定。実装が必要になったら着手前にユーザーに聞くこと。
 
 - サムネイルの保存先（`refs/notes/shiori` か orphan ブランチか）
-- VPM リポジトリ（index.json）の公開手順と、`shiori-vrchat` への分割タイミング
 - 英語ローカライズを正式対応にする時期
