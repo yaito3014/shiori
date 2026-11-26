@@ -371,11 +371,15 @@ namespace Shiori
             public string Label { get; }
             public YamlNode Node { get; }
 
-            public IdentifiedItem(string key, string label, YamlNode node)
+            /// <summary>The object the item is identified by, or null when it is identified by name.</summary>
+            public UnityObjectReference Reference { get; }
+
+            public IdentifiedItem(string key, string label, YamlNode node, UnityObjectReference reference)
             {
                 Key = key;
                 Label = label;
                 Node = node;
+                Reference = reference;
             }
         }
 
@@ -387,9 +391,10 @@ namespace Shiori
             foreach (var item in items)
             {
                 string key, label;
+                UnityObjectReference reference = null;
                 if (identity.FieldIsReference)
                 {
-                    var reference = identity.Field == null ? item.AsReference() : item[identity.Field]?.AsReference();
+                    reference = identity.Field == null ? item.AsReference() : item[identity.Field]?.AsReference();
                     if (reference == null || reference.IsNull) return null;
                     key = reference.FileId.ToString(CultureInfo.InvariantCulture) + ":" + reference.Guid;
                     var labelNode = identity.LabelField == null ? null : item[identity.LabelField];
@@ -404,7 +409,7 @@ namespace Shiori
                     key = label = name.Value;
                 }
                 if (!keys.Add(key)) return null;
-                result.Add(new IdentifiedItem(key, label, item));
+                result.Add(new IdentifiedItem(key, label, item, reference));
             }
             return result;
         }
@@ -418,7 +423,13 @@ namespace Shiori
 
             if (identity.OrderMatters && !SameRelativeOrder(before, after, oldByKey, newKeys))
             {
-                changes.Add(new UnityPropertyChange(path, LabelList(before), LabelList(after)));
+                var order = new Dictionary<string, int>(StringComparer.Ordinal);
+                foreach (var item in before) order[item.Key] = order.Count;
+                foreach (var item in after)
+                {
+                    if (!order.ContainsKey(item.Key)) order[item.Key] = order.Count;
+                }
+                changes.Add(new UnityPropertyChange(path, OrderLabels(before, order, context.OldNames, context.Resolver), OrderLabels(after, order, context.NewNames, context.Resolver)));
             }
 
             foreach (var item in after)
@@ -460,11 +471,84 @@ namespace Shiori
             return true;
         }
 
-        private static string LabelList(List<IdentifiedItem> items)
+        /// <summary>
+        /// "[A, B]" for an order row. Items that would read the same (transitions between the same states,
+        /// behaviours on one state) get what tells them apart: their conditions or script, and when that is the
+        /// same too, a number from <paramref name="order"/> (the old order, then new items), so a swap stays visible.
+        /// </summary>
+        private static string OrderLabels(List<IdentifiedItem> items, Dictionary<string, int> order, Locator names, IGuidResolver resolver)
         {
             var labels = new string[items.Count];
             for (var i = 0; i < items.Count; i++) labels[i] = items[i].Label;
-            return "[" + string.Join(", ", labels) + "]";
+
+            var repeated = Repeated(labels);
+            for (var i = 0; i < items.Count; i++)
+            {
+                if (!repeated.Contains(labels[i])) continue;
+                var detail = Detail(items[i].Reference, names, resolver);
+                if (!string.IsNullOrEmpty(detail)) labels[i] += " (" + detail + ")";
+            }
+
+            repeated = Repeated(labels);
+            var shown = new string[items.Count];
+            for (var i = 0; i < items.Count; i++)
+            {
+                shown[i] = labels[i];
+                if (!repeated.Contains(labels[i])) continue;
+                var number = 1;
+                for (var j = 0; j < items.Count; j++)
+                {
+                    if (labels[j] == labels[i] && order[items[j].Key] < order[items[i].Key]) number++;
+                }
+                shown[i] += " (" + number.ToString(CultureInfo.InvariantCulture) + ")";
+            }
+            return "[" + string.Join(", ", shown) + "]";
+        }
+
+        private static HashSet<string> Repeated(string[] labels)
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            var repeated = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var label in labels)
+            {
+                if (!seen.Add(label)) repeated.Add(label);
+            }
+            return repeated;
+        }
+
+        /// <summary>What sets an object in this file apart from others at the same place: a transition's conditions or a behaviour's script.</summary>
+        private static string Detail(UnityObjectReference reference, Locator names, IGuidResolver resolver)
+        {
+            if (reference == null || reference.IsNull || reference.Guid != null) return null;
+            var doc = names.DocumentById(reference.FileId);
+            if (doc == null) return null;
+            switch (doc.TypeName)
+            {
+                case "AnimatorStateTransition":
+                case "AnimatorTransition":
+                    return Conditions(doc.Body["m_Conditions"]);
+                case "MonoBehaviour":
+                    var script = doc.Body["m_Script"]?.AsReference();
+                    var scriptPath = script == null || script.IsNull || script.Guid == null ? null : resolver?.Resolve(script.Guid);
+                    return string.IsNullOrEmpty(scriptPath) ? null : System.IO.Path.GetFileNameWithoutExtension(scriptPath);
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>"Hat If, Speed Greater 0.5": the threshold only for the modes that compare against one.</summary>
+        private static string Conditions(YamlNode list)
+        {
+            if (list == null || list.Kind != YamlNodeKind.Sequence || list.Items.Count == 0) return null;
+            var parts = new List<string>();
+            foreach (var condition in list.Items)
+            {
+                var mode = condition["m_ConditionMode"]?.Value;
+                var text = condition["m_ConditionEvent"]?.Value + " " + (mode != null && ConditionModes.TryGetValue(mode, out var name) ? name : mode);
+                if (mode != "1" && mode != "2") text += " " + condition["m_EventTreshold"]?.Value;
+                parts.Add(text);
+            }
+            return string.Join(", ", parts);
         }
 
         private static bool IsKeyedList(IReadOnlyList<YamlNode> items)
@@ -685,6 +769,8 @@ namespace Shiori
                 if (destination.Length == 0) return source;
                 return source.Length == 0 ? "→ " + destination : source + " → " + destination;
             }
+
+            public UnityYamlDocument DocumentById(long fileId) => _byId.TryGetValue(fileId, out var doc) ? doc : null;
 
             /// <summary>The location of the object with <paramref name="fileId"/> in this file, or null when there is none.</summary>
             public string LocationById(long fileId) => _byId.TryGetValue(fileId, out var doc) ? Locate(doc) : null;

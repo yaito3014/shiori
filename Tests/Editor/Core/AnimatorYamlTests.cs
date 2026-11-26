@@ -172,6 +172,32 @@ AnimatorState:
   m_Tag:
 ";
 
+        // A second Idle -> Hat On transition, so two transitions share both ends.
+        private const string SecondIdleTransition = @"--- !u!1101 &1101004
+AnimatorStateTransition:
+  m_ObjectHideFlags: 1
+  m_Name:
+  m_Conditions:
+  - m_ConditionMode: 3
+    m_ConditionEvent: Speed
+    m_EventTreshold: 0.5
+  m_DstStateMachine: {fileID: 0}
+  m_DstState: {fileID: 1102002}
+  m_IsExit: 0
+  serializedVersion: 3
+  m_TransitionDuration: 0
+  m_HasExitTime: 0
+";
+
+        private const string SecondBehaviour = @"--- !u!114 &11400002
+MonoBehaviour:
+  m_ObjectHideFlags: 1
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_Script: {fileID: 11500000, guid: eeee5555eeee5555eeee5555eeee5555, type: 3}
+  m_Name:
+";
+
         private sealed class Resolver : IGuidResolver
         {
             public string Resolve(string guid)
@@ -182,6 +208,7 @@ AnimatorState:
                     case "bbbb2222bbbb2222bbbb2222bbbb2222": return "Assets/FX/HatOn.anim";
                     case "dddd4444dddd4444dddd4444dddd4444": return "Assets/FX/HatOn2.anim";
                     case "cccc3333cccc3333cccc3333cccc3333": return "Packages/com.vrchat.avatars/AvatarParameterDriver.cs";
+                    case "eeee5555eeee5555eeee5555eeee5555": return "Packages/com.vrchat.avatars/TrackingControl.cs";
                     default: return null;
                 }
             }
@@ -403,6 +430,49 @@ AnimatorState:
             Assert.That(change.TypeName, Is.EqualTo("MonoBehaviour"));
             Assert.That(change.Location, Is.EqualTo("Base Layer/Hat On"));
             Assert.That(change.Properties.Single().Path, Is.EqualTo("localOnly"));
+        }
+
+        private static UnityPropertyChange IdleTransitionOrder(string secondTransition)
+        {
+            var both = Controller + secondTransition;
+            var first = both.Replace("  m_Transitions:\n  - {fileID: -1101001}\n", "  m_Transitions:\n  - {fileID: -1101001}\n  - {fileID: 1101004}\n");
+            var swapped = both.Replace("  m_Transitions:\n  - {fileID: -1101001}\n", "  m_Transitions:\n  - {fileID: 1101004}\n  - {fileID: -1101001}\n");
+            return UnityYamlDiff.Compare(first, swapped, Names).Single(c => c.FileId == -1102001).Properties.Single();
+        }
+
+        [Test]
+        public void Diff_ReorderedTransitionsBetweenTheSameStates_AreToldApartByTheirConditions()
+        {
+            var row = IdleTransitionOrder(SecondIdleTransition);
+
+            Assert.That(row.Path, Is.EqualTo("m_Transitions"));
+            Assert.That(row.OldValue, Is.EqualTo("[Base Layer/Idle → Base Layer/Hat On (Hat If), Base Layer/Idle → Base Layer/Hat On (Speed Greater 0.5)]"));
+            Assert.That(row.NewValue, Is.EqualTo("[Base Layer/Idle → Base Layer/Hat On (Speed Greater 0.5), Base Layer/Idle → Base Layer/Hat On (Hat If)]"));
+        }
+
+        [Test]
+        public void Diff_ReorderedTransitionsWithTheSameConditions_AreNumberedInTheirOldOrder()
+        {
+            var sameConditions = SecondIdleTransition.Replace("  - m_ConditionMode: 3\n    m_ConditionEvent: Speed\n    m_EventTreshold: 0.5\n", "  - m_ConditionMode: 1\n    m_ConditionEvent: Hat\n    m_EventTreshold: 0\n");
+
+            var row = IdleTransitionOrder(sameConditions);
+
+            Assert.That(row.OldValue, Is.EqualTo("[Base Layer/Idle → Base Layer/Hat On (Hat If) (1), Base Layer/Idle → Base Layer/Hat On (Hat If) (2)]"));
+            Assert.That(row.NewValue, Is.EqualTo("[Base Layer/Idle → Base Layer/Hat On (Hat If) (2), Base Layer/Idle → Base Layer/Hat On (Hat If) (1)]"));
+        }
+
+        [Test]
+        public void Diff_ReorderedBehavioursOnOneState_AreToldApartByTheirScript()
+        {
+            var both = Controller + SecondBehaviour;
+            var first = both.Replace("  m_StateMachineBehaviours:\n  - {fileID: 11400001}\n", "  m_StateMachineBehaviours:\n  - {fileID: 11400001}\n  - {fileID: 11400002}\n");
+            var swapped = both.Replace("  m_StateMachineBehaviours:\n  - {fileID: 11400001}\n", "  m_StateMachineBehaviours:\n  - {fileID: 11400002}\n  - {fileID: 11400001}\n");
+
+            var row = UnityYamlDiff.Compare(first, swapped, Names).Single(c => c.FileId == 1102002).Properties.Single();
+
+            Assert.That(row.Path, Is.EqualTo("m_StateMachineBehaviours"));
+            Assert.That(row.OldValue, Is.EqualTo("[Base Layer/Hat On (AvatarParameterDriver), Base Layer/Hat On (TrackingControl)]"));
+            Assert.That(row.NewValue, Is.EqualTo("[Base Layer/Hat On (TrackingControl), Base Layer/Hat On (AvatarParameterDriver)]"));
         }
 
         [Test]
