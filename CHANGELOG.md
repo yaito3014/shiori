@@ -3,6 +3,22 @@
 リリースごとに、使う人向けの言葉で書いています。開発者向けの詳細は各リリースの GitHub Releases にあります。
 Each release is described for the people who use it. The developer-level detail is in the GitHub release notes.
 
+## [Unreleased]
+
+### 日本語
+
+- **詳細モードで、アニメーターコントローラー（.controller）の変更も Unity の言葉で見られるようになりました。**
+  パラメーター・レイヤー・ステート（「Base Layer/Idle」）・遷移（「Base Layer/Idle → Base Layer/Walk」）ごとに、
+  何が変わったかを並べます。パラメーターの型と遷移の条件は Bool、If などの名前で出します。
+  Animator ウィンドウでノードを動かしただけの変更は出さず、レイヤーや遷移の順番が変わったときはその順番を出します。
+
+### English
+
+- **Detail mode shows animator controller (.controller) changes in Unity terms**: by parameter, layer, state
+  ("Base Layer/Idle") and transition ("Base Layer/Idle → Base Layer/Walk"). Parameter types and transition conditions
+  are shown by name (Bool, If, ...). Moving nodes in the Animator window is not shown as a change; a new order of
+  layers or transitions is.
+
 ## [0.6.0] - 2026-10-15
 
 ### 日本語
